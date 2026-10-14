@@ -32,6 +32,7 @@ Reads `metrics.ndjson` and nothing else.
 
 from __future__ import annotations
 
+import errno as errno_module
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -77,13 +78,32 @@ TEXT_MECHANISMS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 # Host-side failures, by OS errno, when neither of the above applies.
-ERRNO_MECHANISMS: dict[int, str] = {
-    48: "ephemeral_ports",  # EADDRINUSE
-    49: "ephemeral_ports",  # EADDRNOTAVAIL
-    54: "connection_reset",  # ECONNRESET
-    61: "listen_backlog",  # ECONNREFUSED
-    60: "connect_timeout",  # ETIMEDOUT
+#
+# Keyed by *symbolic name*, not number. Errno numbers are the OS's, not
+# POSIX's: ECONNREFUSED is 61 on macOS and 111 on Linux, and 61 on Linux is
+# ENODATA. The table was written with the Mac's numbers, so on Linux a real
+# refusal fell through to the text rules and an unrelated ENODATA would have
+# been named `listen_backlog` (found 2026-10-14, the first unit run on Linux).
+ERRNO_NAME_MECHANISMS: dict[str, str] = {
+    "EADDRINUSE": "ephemeral_ports",
+    "EADDRNOTAVAIL": "ephemeral_ports",
+    "ECONNRESET": "connection_reset",
+    "ECONNREFUSED": "listen_backlog",
+    "ETIMEDOUT": "connect_timeout",
 }
+
+# The same table by number, for *this* OS. A record carries the number the
+# recording host's kernel gave, and `classify_exception` writes that host's
+# symbolic name into the message as `[ENAME]` at record time -- which is what
+# `attribute` reads first, so a file recorded on Linux and re-derived on a Mac
+# (or the reverse) is still read by name rather than by a foreign number.
+ERRNO_MECHANISMS: dict[int, str] = {
+    getattr(errno_module, name): mechanism
+    for name, mechanism in ERRNO_NAME_MECHANISMS.items()
+    if hasattr(errno_module, name)
+}
+
+_RECORDED_ERRNO_NAME = re.compile(r"\[(E[A-Z0-9]+)\]")
 
 FAILURE_EVENTS = frozenset({"refused", "reset", "timeout"})
 
@@ -99,7 +119,14 @@ def attribute(record: ConnectionEventRecord) -> str:
         named = SQLSTATE_MECHANISMS.get(record.sqlstate)
         if named:
             return named
-    if record.errno is not None:
+    recorded = _RECORDED_ERRNO_NAME.search(record.message or "")
+    if recorded:
+        # The recording host named its own errno; that name is authoritative,
+        # and the number is never re-read through this host's table.
+        named = ERRNO_NAME_MECHANISMS.get(recorded.group(1))
+        if named:
+            return named
+    elif record.errno is not None:
         named = ERRNO_MECHANISMS.get(record.errno)
         if named:
             return named

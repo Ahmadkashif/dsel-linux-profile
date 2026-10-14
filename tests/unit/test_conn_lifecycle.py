@@ -11,6 +11,8 @@ engine; the live provocation is in the integration suite.
 
 from __future__ import annotations
 
+import errno
+
 import pytest
 
 from dsel.live.sampler.connections import classify_exception
@@ -73,7 +75,10 @@ def test_text_is_used_when_the_engine_never_answered(message: str, mechanism: st
 
 
 @pytest.mark.parametrize(
-    ("number", "mechanism"), [(49, "ephemeral_ports"), (61, "listen_backlog")]
+    ("number", "mechanism"),
+    # By symbolic name: 49 and 61 are the macOS numbers for these, and on Linux
+    # 61 is ENODATA. On the Mac these are the same two numbers as before.
+    [(errno.EADDRNOTAVAIL, "ephemeral_ports"), (errno.ECONNREFUSED, "listen_backlog")],
 )
 def test_errno_is_used_when_there_is_no_text_to_match(number: int, mechanism: str) -> None:
     assert attribute(event(errno=number, message="")) == mechanism
@@ -111,10 +116,21 @@ def test_no_failures_at_all_is_not_full_attribution() -> None:
 
 
 def test_the_exception_classifier_keeps_evidence_and_adds_nothing() -> None:
-    sqlstate, message, number = classify_exception(OSError(61, "Connection refused"))
+    sqlstate, message, number = classify_exception(
+        OSError(errno.ECONNREFUSED, "Connection refused")
+    )
     assert sqlstate is None
-    assert number == 61
+    assert number == errno.ECONNREFUSED
     assert "Connection refused" in message
     assert "ECONNREFUSED" in message, (
         "the symbolic name helps a reader, the number alone does not"
     )
+
+
+def test_a_foreign_errno_number_is_not_read_as_a_local_one() -> None:
+    """A record made on Linux carries Linux's number and Linux's name. Re-derived
+    on any OS, the recorded name wins over whatever the number means locally."""
+    linux_refused = event(errno=111, message="[Errno 111] Connection refused [ECONNREFUSED]")
+    assert attribute(linux_refused) == "listen_backlog"
+    linux_enodata = event(errno=61, message="[Errno 61] No data available [ENODATA]")
+    assert attribute(linux_enodata) != "listen_backlog"
