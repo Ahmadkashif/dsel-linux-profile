@@ -27,6 +27,7 @@ import subprocess
 from dataclasses import dataclass
 
 from dsel.audit.models import ImagePin, VcpuProbe, VcpuSpeed
+from dsel.hostprofile import LOCAL_DRIVER_CPUSET, LOCAL_ENGINE_CPUSET
 
 # PLAN.md fixes the unit of work at 200 ms per vCPU.
 WORK_MS = 200
@@ -36,9 +37,10 @@ WORK_MS = 200
 DEFAULT_REPEATS = 6
 WARMUP_REPEATS = 1
 
-# PLAN.md's hardware slices.
-ENGINE_CPUSET = (2, 3, 4, 5)
-DRIVER_CPUSET = (6, 7, 8, 9)
+# PLAN.md's hardware slices: the `local` profile's, under their historical names.
+# `run_probe` takes a profile's sets as arguments on any other host.
+ENGINE_CPUSET = LOCAL_ENGINE_CPUSET
+DRIVER_CPUSET = LOCAL_DRIVER_CPUSET
 
 # PLAN.md S1: "If engine-set and driver-set aggregate speed differ >10%".
 HETEROGENEITY_THRESHOLD_PCT = 10.0
@@ -169,8 +171,19 @@ def run_probe(
     repeats: int = DEFAULT_REPEATS,
     work_ms: int = WORK_MS,
     warmup: int = WARMUP_REPEATS,
+    *,
+    cpuset: tuple[int, ...] | None = None,
+    engine_cpuset: tuple[int, ...] = ENGINE_CPUSET,
+    driver_cpuset: tuple[int, ...] = DRIVER_CPUSET,
+    caps: tuple[str, ...] = (),
 ) -> tuple[VcpuProbe, list[str]]:
-    """Run the probe in a digest-pinned container; return the result and reasons."""
+    """Run the probe in a digest-pinned container; return the result and reasons.
+
+    `cpuset=None` probes every vCPU the daemon has (`local`, unchanged). On a
+    shared host the probe is confined to dsel's own cores: 200 ms of spinning on
+    each of the host's reserved cores is exactly the kind of interference the
+    reservation exists to prevent.
+    """
     if repeats <= warmup:
         raise ValueError(f"repeats ({repeats}) must exceed warmup ({warmup})")
     payload = _PAYLOAD.format(work_ms=work_ms, repeats=repeats)
@@ -184,8 +197,17 @@ def run_probe(
             # Both, per the invariant: quota alone leaves the container seeing
             # all host cores. The probe needs every vCPU visible, so the cpuset
             # is the full set and the quota matches it.
-            "--cpuset-cpus",
-            f"0-{_daemon_ncpu() - 1}",
+            *(
+                ["--cpuset-cpus", f"0-{_daemon_ncpu() - 1}"]
+                if cpuset is None
+                else [
+                    "--cpuset-cpus",
+                    ",".join(str(c) for c in cpuset),
+                    "--cpus",
+                    str(len(cpuset)),
+                ]
+            ),
+            *caps,
             f"{repo}@{image.index_digest}",
             "python3",
             "-",
@@ -202,15 +224,15 @@ def run_probe(
         )
     raw = json.loads(result.stdout)
     speeds = _summarise(raw["samples"], warmup)
-    analysis = analyse(speeds)
+    analysis = analyse(speeds, engine_cpuset, driver_cpuset)
     probe = VcpuProbe(
         work_ms=work_ms,
         repeats=repeats,
         discarded_warmup=warmup,
         per_vcpu=speeds,
         relative_speed=analysis.relative_speed,
-        engine_cpuset=list(ENGINE_CPUSET),
-        driver_cpuset=list(DRIVER_CPUSET),
+        engine_cpuset=list(engine_cpuset),
+        driver_cpuset=list(driver_cpuset),
         engine_aggregate_ips=analysis.engine_aggregate,
         driver_aggregate_ips=analysis.driver_aggregate,
         set_difference_pct=analysis.set_difference_pct,

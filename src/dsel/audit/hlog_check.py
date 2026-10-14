@@ -178,6 +178,7 @@ def java_percentiles(
     `docker cp`, the container is labelled so the ordinary teardown can find
     it, and it is removed on every path out.
     """
+    from dsel.hostprofile import active
     from dsel.runtime.teardown import LABEL_KEY, MANAGED_LABEL
 
     jar = ensure_jar()
@@ -194,12 +195,10 @@ def java_percentiles(
             f"{MANAGED_LABEL}=true",
             "--label",
             f"{LABEL_KEY}={run_id}",
-            "--cpuset-cpus",
-            "0-1",
-            "--memory",
-            "512m",
-            "--memory-swap",
-            "512m",
+            # The host/app slice: the JDK reads a file and exits, and must stay
+            # off the engine's and the driver's cores. From the profile, so on
+            # a shared host it never lands on the reserved cores.
+            *active().app.docker_flags(memory_bytes=512 * 1024**2),
             JDK_IMAGE,
             "sleep",
             "300",

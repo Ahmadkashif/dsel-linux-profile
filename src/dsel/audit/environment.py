@@ -27,6 +27,7 @@ from dsel.audit.models import (
     Manifest,
     VmCapture,
 )
+from dsel.hostprofile import HostProfile
 from dsel.version import provenance
 
 _TIMEOUT_S = 30.0
@@ -67,8 +68,108 @@ def _sysctl_str(name: str) -> str | None:
     return value or None
 
 
+def _read_text(path: str) -> str | None:
+    try:
+        return Path(path).read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+
+def _root_device_rotational() -> tuple[str | None, str | None]:
+    """The root filesystem's type and its block device's `rotational` flag.
+
+    Read-only: `findmnt` names the source, `/sys/block/<disk>/queue/rotational`
+    says whether the kernel thinks it spins. A partition (`nvme0n1p2`) is mapped
+    to its parent disk through `/sys/class/block/<part>/..`.
+    """
+    try:
+        raw = _run(["findmnt", "-no", "SOURCE,FSTYPE", "/"]).split()
+    except (CaptureError, subprocess.SubprocessError, OSError):
+        return None, None
+    if len(raw) < 2:
+        return None, None
+    source, fstype = raw[0], raw[1]
+    name = Path(source).name
+    block = Path("/sys/class/block") / name
+    disk = name
+    if (block / "partition").exists():
+        disk = block.resolve().parent.name
+    return fstype, _read_text(f"/sys/block/{disk}/queue/rotational")
+
+
+def _bracketed(value: str | None) -> str | None:
+    if value is None:
+        return None
+    start, end = value.find("["), value.find("]")
+    return value[start + 1 : end] if 0 <= start < end else value
+
+
+def capture_linux_host() -> HostCapture:
+    """A Linux host, read from /proc and /sys. Nothing is written."""
+    from dsel.hostprofile.detect import read_host
+
+    facts = read_host()
+    fstype, rotational = _root_device_rotational()
+    zones: dict[str, str] = {}
+    for zone in sorted(Path("/sys/class/thermal").glob("thermal_zone*")):
+        kind = _read_text(str(zone / "type"))
+        temp = _read_text(str(zone / "temp"))
+        if kind and temp:
+            zones[kind] = temp
+    return HostCapture(
+        os_name=platform.system(),
+        os_version=_os_release() or platform.release(),
+        arch=platform.machine(),
+        cpu_brand=facts.cpu_model,
+        logical_cpus=facts.logical_cpus or None,
+        physical_cpus=facts.physical_cores or None,
+        memory_bytes=facts.memtotal_kib * 1024 if facts.memtotal_kib else None,
+        kernel_release=facts.kernel,
+        smt_active=facts.smt_active,
+        cpu_governor=facts.governor,
+        cpu_scaling_driver=_read_text("/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver"),
+        transparent_hugepage=facts.thp,
+        root_fs_type=fstype,
+        root_device_rotational=rotational,
+        thermal_zones=zones,
+    )
+
+
+def _os_release() -> str | None:
+    text = _read_text("/etc/os-release") or ""
+    for line in text.splitlines():
+        if line.startswith("PRETTY_NAME="):
+            return line.split("=", 1)[1].strip().strip('"')
+    return None
+
+
+REASON_FREQUENCY_SCALING = "cpu_frequency_scaling_enabled"
+REASON_SMT = "smt_active"
+REASON_NON_SSD_ROOT = "root_device_rotational"
+
+
+def host_deviation_reasons(host: HostCapture) -> list[str]:
+    """Reasons a bare-metal Linux host's envelope deviates, from facts already read.
+
+    Recorded, never corrected: the governor and SMT belong to the host's owner.
+    A `powersave` or `schedutil` governor means clock speed follows load and
+    temperature, so two cells minutes apart need not have run at one frequency;
+    SMT means a tier's two logical CPUs share one core's execution units.
+    """
+    reasons: list[str] = []
+    if host.cpu_governor is not None and host.cpu_governor != "performance":
+        reasons.append(REASON_FREQUENCY_SCALING)
+    if host.smt_active:
+        reasons.append(REASON_SMT)
+    if host.root_device_rotational == "1":
+        reasons.append(REASON_NON_SSD_ROOT)
+    return reasons
+
+
 def capture_host() -> HostCapture:
-    """The macOS host. It does not run the engine, but it schedules the VM."""
+    """The host. On macOS it does not run the engine, but it schedules the VM."""
+    if platform.system() == "Linux":
+        return capture_linux_host()
     return HostCapture(
         os_name=platform.system(),
         os_version=platform.mac_ver()[0] or platform.release(),
@@ -132,10 +233,17 @@ done
 """
 
 
-def capture_vm(image: ImagePin) -> VmCapture:
-    """Read the VM's kernel state from inside a container pinned by digest."""
+def capture_vm(image: ImagePin, caps: list[str] | None = None) -> VmCapture:
+    """Read the VM's kernel state from inside a container pinned by digest.
+
+    `caps` are the profile's container limits. On a shared host even a
+    two-second `cat` container is pinned to dsel's cores with a memory and
+    pids ceiling; nothing dsel starts runs unbounded.
+    """
     ref = f"{image.reference.split(':')[0]}@{image.index_digest}"
-    out = _run(["docker", "run", "--rm", "-i", ref, "sh", "-s"], stdin=_VM_SCRIPT)
+    out = _run(
+        ["docker", "run", "--rm", "-i", *(caps or []), ref, "sh", "-s"], stdin=_VM_SCRIPT
+    )
     fields: dict[str, str] = {}
     rotational: dict[str, str] = {}
     for line in out.splitlines():
@@ -275,21 +383,35 @@ def _host_docker_arch() -> str:
     )
 
 
-def capture(image: ImagePin) -> tuple[HostCapture, DaemonCapture, VmCapture]:
+def capture(
+    image: ImagePin, caps: list[str] | None = None
+) -> tuple[HostCapture, DaemonCapture, VmCapture]:
     """Capture all three vantage points."""
-    return capture_host(), capture_daemon(), capture_vm(image)
+    return capture_host(), capture_daemon(), capture_vm(image, caps)
 
 
 def build_manifest(
     image: ImagePin,
     deviation_reasons: list[str],
+    profile: HostProfile | None = None,
 ) -> Manifest:
-    """Assemble the S1 portion of the run manifest."""
-    host, daemon, vm = capture(image)
+    """Assemble the S1 portion of the run manifest.
+
+    The profile's name, its `reportable` stamp and its standing deviation
+    reasons go in before anything is measured. With no profile the manifest is
+    exactly what it was before profiles existed: `profile=local`, unreportable.
+    """
+    caps = (
+        profile.driver.docker_flags(cpus=1.0, memory_bytes=256 * 1024**2) if profile else None
+    )
+    host, daemon, vm = capture(image, caps if profile and profile.name != "local" else None)
     prov = provenance()
+    reasons = set(deviation_reasons) | set(profile.deviation_reasons if profile else ())
     return Manifest(
+        profile=profile.name if profile is not None else "local",
+        reportable=profile.reportable if profile is not None else False,
         captured_at=datetime.now(UTC),
-        envelope_deviation_reasons=sorted(deviation_reasons),
+        envelope_deviation_reasons=sorted(reasons),
         harness_version=prov.version,
         harness_commit=prov.commit,
         harness_dirty=prov.dirty,

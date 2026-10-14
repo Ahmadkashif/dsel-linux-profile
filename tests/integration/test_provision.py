@@ -11,8 +11,9 @@ import socket
 import pytest
 
 from dsel.audit.environment import resolve_image
+from dsel.hostprofile import active
 from dsel.runtime.docker import provision, read_back, verify_storage, wait_healthy
-from dsel.runtime.envelope import GIB, ResourceEnvelope
+from dsel.runtime.envelope import GIB
 from dsel.runtime.paths import new_run_id
 from dsel.runtime.storage import EXPECTED_FSTYPES
 from dsel.runtime.teardown import Teardown, list_managed
@@ -34,9 +35,7 @@ def engine():
     """A provisioned, healthy Postgres, torn down whatever happens."""
     pin = resolve_image(IMAGE)
     run_id = new_run_id()
-    envelope = ResourceEnvelope(
-        cpuset=(2, 3, 4, 5), cpus=4.0, memory_bytes=3 * GIB, pids_limit=512
-    )
+    envelope = active().envelope("engine", memory_bytes=3 * GIB, pids_limit=512)
     teardown = Teardown(run_id)
     try:
         container = provision(

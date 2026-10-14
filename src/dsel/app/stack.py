@@ -1,7 +1,8 @@
 """Bringing the app tier up and down (PLAN.md S13-S14).
 
-The tier gets the host slice, cpuset 0-1, which the budget already accounts
-for. Its `--cpus` quota is not a detail: it is the *denominator* of
+The tier gets the profile's app slice -- cpuset 0-1 on `local`, one whole
+physical core shared with observability on `linux-shared-8c16t` -- which the
+budget already accounts for. Its `--cpus` quota is not a detail: it is the *denominator* of
 `app_tier_cpu_pct`. An unlimited container has no denominator, so the gate
 would have no number and would pass by never being able to fire.
 
@@ -15,8 +16,10 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from dsel.hostprofile import HostProfile, active
 from dsel.runtime.teardown import LABEL_KEY, MANAGED_LABEL
 
+# `local`'s value, kept for readers of older notes; the tier comes from the profile.
 APP_CPUSET = "0-1"
 DEFAULT_CPUS = 1.0
 DEFAULT_MEMORY = "1g"
@@ -65,6 +68,7 @@ def start_app(
     workers: int = 1,
     scale: int = 10,
     pool_max: int = 16,
+    profile: HostProfile | None = None,
 ) -> AppContainer:
     """Start the tier. Without `dsn` only `/noop` and `/cpu` are live.
 
@@ -72,6 +76,8 @@ def start_app(
     pool opened against an engine would fold the engine into a number that is
     supposed to be about the tier.
     """
+    profile = profile or active()
+    tier = profile.app
     name = f"dsel-app-{run_id}"
     _docker(["rm", "--force", name])
     args = [
@@ -84,17 +90,17 @@ def start_app(
         "--label",
         f"{LABEL_KEY}={run_id}",
         "--cpuset-cpus",
-        APP_CPUSET,
+        tier.cpuset_spec,
         "--cpus",
-        str(cpus),
+        str(min(cpus, tier.cpus)),
         "--memory",
         memory,
         "--memory-swap",
         memory,
         "--pids-limit",
-        "1024",
+        str(tier.pids_limit),
         "--publish",
-        f"{host_port}:{CONTAINER_PORT}",
+        profile.publish(host_port, CONTAINER_PORT),
         "--env",
         f"DSEL_CELL={cell}",
         "--env",

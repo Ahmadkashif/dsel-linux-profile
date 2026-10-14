@@ -17,13 +17,14 @@ from pathlib import Path
 import pytest
 
 from dsel.audit.environment import resolve_image
+from dsel.hostprofile import active
 from dsel.live.merge import find_shards, merge_records
 from dsel.live.ndjson import ShardWriter
 from dsel.live.sampler.containers import ContainerSampler
 from dsel.live.schema import RECORD_ADAPTER
 from dsel.runtime.cgroup import read as read_cgroup
 from dsel.runtime.docker import provision, wait_healthy
-from dsel.runtime.envelope import GIB, ResourceEnvelope
+from dsel.runtime.envelope import GIB
 from dsel.runtime.events import EventWatcher
 from dsel.runtime.paths import new_run_id
 from dsel.runtime.teardown import Teardown
@@ -43,7 +44,7 @@ def free_port() -> int:
 def engine():
     pin = resolve_image("postgres:18")
     run_id = new_run_id()
-    envelope = ResourceEnvelope((2, 3, 4, 5), 4.0, 3 * GIB, pids_limit=512)
+    envelope = active().envelope("engine", memory_bytes=3 * GIB, pids_limit=512)
     teardown = Teardown(run_id)
     try:
         container = provision(
@@ -142,7 +143,9 @@ def test_exceeding_memory_produces_an_oom_event() -> None:
     try:
         with EventWatcher(run_id) as watcher:
             time.sleep(1.0)  # let `docker events` attach before the container starts
-            envelope = ResourceEnvelope((6, 7), 2.0, 64 * 1024 * 1024, pids_limit=128)
+            envelope = active().envelope(
+                "driver", cpus=2.0, memory_bytes=64 * 1024 * 1024, pids_limit=128
+            )
             container = provision(
                 pin,
                 envelope,

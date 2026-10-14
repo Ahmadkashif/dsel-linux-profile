@@ -42,6 +42,8 @@ BOOTSTRAP_RESAMPLES = 10_000
 # on a cpuset it does not share. PLAN.md treats the two pools as independent.
 REASON_ISOLATION_INEFFECTIVE = "cpuset_isolation_ineffective"
 
+# `local`'s pair. A profile names its own (`HostProfile.interference_pair`): on
+# `linux-shared-8c16t` it is 4-5,12-13 against 6-7,14-15, both inside dsel's cores.
 ENGINE_CPUSET_SPEC = "2-5"
 DRIVER_CPUSET_SPEC = "6-9"
 CPUSET_WIDTH = 4
@@ -126,7 +128,10 @@ def _image_ref(image: ImagePin) -> str:
     return f"{image.reference.split(':')[0]}@{image.index_digest}"
 
 
-def _measure_capacity(image: ImagePin, cpuset: str, workers: int, window_s: float) -> float:
+def _measure_capacity(
+    image: ImagePin, cpuset: str, workers: int, window_s: float, caps: tuple[str, ...] = ()
+) -> float:
+    """`caps` adds the profile's memory/pids/label flags; the cpuset is the argument."""
     payload = _CAPACITY_PAYLOAD.format(window_s=window_s, workers=workers)
     result = subprocess.run(
         [
@@ -140,6 +145,7 @@ def _measure_capacity(image: ImagePin, cpuset: str, workers: int, window_s: floa
             cpuset,
             "--cpus",
             str(workers),
+            *caps,
             _image_ref(image),
             "python3",
             "-",
@@ -160,7 +166,10 @@ def _measure_capacity(image: ImagePin, cpuset: str, workers: int, window_s: floa
 class _Contention:
     """A detached spinning load on a cpuset, removed on exit even on error."""
 
-    def __init__(self, image: ImagePin, cpuset: str, workers: int) -> None:
+    def __init__(
+        self, image: ImagePin, cpuset: str, workers: int, caps: tuple[str, ...] = ()
+    ) -> None:
+        self._caps = caps
         self._image = image
         self._cpuset = cpuset
         self._workers = workers
@@ -181,6 +190,7 @@ class _Contention:
                 self._cpuset,
                 "--cpus",
                 str(self._workers),
+                *self._caps,
                 _image_ref(self._image),
                 "python3",
                 "-c",
@@ -228,6 +238,7 @@ def sweep(
     window_s: float = DEFAULT_WINDOW_S,
     seed: int = DEFAULT_SEED,
     workers: int = CPUSET_WIDTH,
+    caps: tuple[str, ...] = (),
 ) -> InterferenceSweep:
     """Measure `measured_cpuset` capacity under load on `contended_cpuset`."""
     if 0 not in levels:
@@ -239,8 +250,10 @@ def sweep(
         order = list(levels)
         rng.shuffle(order)  # drift must not align with dose
         for level in order:
-            with _Contention(image, contended_cpuset, level):
-                raw[level].append(_measure_capacity(image, measured_cpuset, workers, window_s))
+            with _Contention(image, contended_cpuset, level, caps):
+                raw[level].append(
+                    _measure_capacity(image, measured_cpuset, workers, window_s, caps)
+                )
         del block
 
     baseline = raw[0]

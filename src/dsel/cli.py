@@ -12,6 +12,7 @@ from typing import Annotated
 
 import typer
 
+from dsel.hostprofile import HostProfile
 from dsel.version import provenance
 
 app = typer.Typer(
@@ -77,6 +78,18 @@ def _not_implemented(command: str) -> None:
     raise typer.Exit(code=2)
 
 
+def _profile(name: str | None) -> HostProfile:
+    """The named profile, or the detected one. Refusals are sentences, not traces."""
+    from dsel.hostprofile import ProfileError, active
+    from dsel.hostprofile.detect import choose
+
+    try:
+        return choose(forced=name).profile if name else active()
+    except ProfileError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+
 def _version_callback(value: bool) -> None:
     if value:
         typer.echo(str(provenance()))
@@ -120,35 +133,73 @@ def env(
         Path | None,
         typer.Option(help="Write the manifest here instead of stdout."),
     ] = None,
+    profile_name: Annotated[
+        str | None,
+        typer.Option("--profile", help="local | linux-shared-8c16t (default: detect)."),
+    ] = None,
 ) -> None:
     """Capture the environment and probe per-vCPU speed (PLAN.md S1)."""
     _require_docker()
-    from dsel.audit.environment import build_manifest, resolve_image
-    from dsel.audit.interference import (
-        DRIVER_CPUSET_SPEC,
-        ENGINE_CPUSET_SPEC,
-        reasons_for,
-        sweep,
-        to_record,
-    )
+    from dsel.audit.environment import build_manifest, host_deviation_reasons, resolve_image
+    from dsel.audit.interference import reasons_for, sweep, to_record
     from dsel.audit.vcpu_probe import run_probe
 
+    profile = _profile(profile_name)
+    shared = profile.allowance_memory_bytes is not None
+    # On a shared host every probe container is capped and labelled like any
+    # other dsel container; on `local` the probes run exactly as before.
+    caps: tuple[str, ...] = (
+        (
+            "--memory",
+            "512m",
+            "--memory-swap",
+            "512m",
+            "--pids-limit",
+            "256",
+            "--label",
+            "com.dsel.managed=true",
+            "--label",
+            "com.dsel.run=env",
+        )
+        if shared
+        else ()
+    )
     pin = resolve_image(image)
     reasons: list[str] = []
     probe_result = None
     if probe:
-        probe_result, reasons = run_probe(pin, repeats=repeats)
+        if shared:
+            probe_result, reasons = run_probe(
+                pin,
+                repeats=repeats,
+                cpuset=profile.probe_cpuset,
+                engine_cpuset=profile.engine.cpuset,
+                driver_cpuset=profile.driver.cpuset,
+                caps=caps,
+            )
+        else:
+            probe_result, reasons = run_probe(pin, repeats=repeats)
 
     records = []
     if interference:
+        measured, contended = profile.interference_pair
         sweeps = [
-            sweep(pin, ENGINE_CPUSET_SPEC, DRIVER_CPUSET_SPEC),
-            sweep(pin, DRIVER_CPUSET_SPEC, ENGINE_CPUSET_SPEC),
+            sweep(pin, measured, contended, caps=caps),
+            sweep(pin, contended, measured, caps=caps),
         ]
         reasons += reasons_for(sweeps)
         records = [to_record(s) for s in sweeps]
 
-    manifest = build_manifest(pin, reasons)
+    manifest = build_manifest(pin, reasons, profile if shared or profile_name else None)
+    if shared:
+        manifest = manifest.model_copy(
+            update={
+                "envelope_deviation_reasons": sorted(
+                    set(manifest.envelope_deviation_reasons)
+                    | set(host_deviation_reasons(manifest.host))
+                )
+            }
+        )
     updates: dict[str, object] = {}
     if probe_result is not None:
         updates["vcpu_probe"] = probe_result
@@ -169,17 +220,36 @@ def env(
 def budget(
     app_tier: Annotated[bool, typer.Option("--app-tier/--no-app-tier")] = True,
     observability: Annotated[str, typer.Option(help="none | light | deep")] = "light",
+    profile_name: Annotated[
+        str | None,
+        typer.Option("--profile", help="local | linux-shared-8c16t (default: detect)."),
+    ] = None,
+    engine_memory_gib: Annotated[
+        float | None, typer.Option(help="Ask for this much engine memory instead.")
+    ] = None,
+    driver_memory_gib: Annotated[
+        float | None, typer.Option(help="Ask for this much driver memory instead.")
+    ] = None,
 ) -> None:
-    """Check a configuration against the machine before anything starts (S2)."""
+    """Check a configuration against the machine before anything starts (S2).
+
+    On `local` the budget is the Docker Desktop VM. On a shared host it is the
+    profile's dsel allowance -- not `docker info`, which there is the whole host.
+    """
     _require_docker()
     from dsel.audit.environment import capture_daemon
-    from dsel.compose.budget import Budget, BudgetError, Observability, plan_local
+    from dsel.compose.budget import GIB, Budget, BudgetError, Observability, plan_for
 
+    profile = _profile(profile_name)
     daemon = capture_daemon()
-    plan = plan_local(
-        Budget(total_vcpus=daemon.ncpu, total_memory_bytes=daemon.mem_total_bytes),
+    typer.echo(f"profile: {profile.name}")
+    plan = plan_for(
+        profile,
+        Budget.for_profile(profile, ncpu=daemon.ncpu, mem_total_bytes=daemon.mem_total_bytes),
         with_app_tier=app_tier,
         observability=Observability(observability),
+        engine_memory_bytes=int(engine_memory_gib * GIB) if engine_memory_gib else None,
+        driver_memory_bytes=int(driver_memory_gib * GIB) if driver_memory_gib else None,
     )
     try:
         plan.check()
@@ -188,6 +258,51 @@ def budget(
         raise typer.Exit(code=1) from exc
     typer.echo(plan.arithmetic())
     typer.secho("\nfits", fg=typer.colors.GREEN)
+
+
+@app.command()
+def profile(
+    profile_name: Annotated[
+        str | None,
+        typer.Option("--profile", help="Force a profile instead of detecting one."),
+    ] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False,
+) -> None:
+    """Detect the host profile, read-only, and show its minimum-spec checks and tiers."""
+    import dataclasses
+    import json
+
+    from dsel.hostprofile import ProfileError
+    from dsel.hostprofile.detect import choose
+
+    try:
+        detection = choose(forced=profile_name)
+    except ProfileError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+    if as_json:
+        payload = {
+            "profile": detection.profile.name,
+            "reportable": detection.profile.reportable,
+            "checks": [dataclasses.asdict(c) for c in detection.checks],
+            "tiers": {
+                t.name: {
+                    "cpuset": t.cpuset_spec,
+                    "cpus": t.cpus,
+                    "memory_bytes": t.memory_bytes,
+                    "pids_limit": t.pids_limit,
+                }
+                for t in detection.profile.tiers
+            },
+            "reserved_cpuset": list(detection.profile.reserved_cpuset),
+            "facts": {
+                k: v for k, v in dataclasses.asdict(detection.facts).items() if k != "topology"
+            },
+            "topology": {str(k): list(v) for k, v in detection.facts.topology.items()},
+        }
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        typer.echo(detection.table())
 
 
 @app.command()
@@ -268,8 +383,9 @@ def watch(
         # A second consumer of the same stream, never a second sampling path (D3).
         from dsel.live.exporter import serve
 
-        serve(target, prometheus_port)
-        typer.echo(f"exporting on http://127.0.0.1:{prometheus_port}/metrics")
+        addr = _profile(None).ports.exporter_bind
+        serve(target, prometheus_port, addr=addr)
+        typer.echo(f"exporting on http://{addr or '127.0.0.1'}:{prometheus_port}/metrics")
     state = watch_replay(target) if replay else watch_live(target, idle_timeout_s=idle_timeout)
     # Both dumps come from the same functions the screen uses, so a diff of two
     # sessions is a diff of what was actually shown (PLAN.md S8a).

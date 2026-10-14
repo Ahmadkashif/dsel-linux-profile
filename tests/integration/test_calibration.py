@@ -51,8 +51,9 @@ from dsel.driver.calibrate import (
     run_pgbench,
     statement_stats,
 )
+from dsel.hostprofile import active
 from dsel.runtime.docker import provision, wait_healthy
-from dsel.runtime.envelope import GIB, ResourceEnvelope
+from dsel.runtime.envelope import GIB
 from dsel.runtime.paths import new_run_id
 from dsel.runtime.teardown import Teardown
 from tests.conftest import requires_docker
@@ -114,7 +115,7 @@ def calibration(
         network = create_network(run_id)
         container = provision(
             pin,
-            ResourceEnvelope(cpuset=(2, 3, 4, 5), cpus=4.0, memory_bytes=3 * GIB),
+            active().envelope("engine", memory_bytes=3 * GIB),
             run_id,
             data_dir=DATA_DIR,
             container_port=5432,

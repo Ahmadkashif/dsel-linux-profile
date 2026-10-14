@@ -67,8 +67,11 @@ from pathlib import Path
 
 from dsel.audit.models import ImagePin
 from dsel.driver.transport import PGBENCH_ACCOUNTS_PER_SCALE
+from dsel.hostprofile import active
 from dsel.runtime.teardown import LABEL_KEY, MANAGED_LABEL
 
+# `local`'s driver slice. Containers take theirs from the active profile's
+# driver tier (cpuset, quota, memory, pids) via `active().driver.docker_flags()`.
 DRIVER_CPUSET = "6-9"
 DEFAULT_SCALE = 10
 
@@ -424,14 +427,7 @@ def run_pgbench(
         *_labels(run_id),
         "--network",
         network,
-        "--cpuset-cpus",
-        DRIVER_CPUSET,
-        "--cpus",
-        "4.0",
-        "--memory",
-        "1g",
-        "--memory-swap",
-        "1g",
+        *active().driver.docker_flags(),
     ]
     for value in env:
         run_args += ["--env", value]
@@ -514,14 +510,7 @@ def run_driver(
             *_labels(run_id),
             "--network",
             network,
-            "--cpuset-cpus",
-            DRIVER_CPUSET,
-            "--cpus",
-            "4.0",
-            "--memory",
-            "1g",
-            "--memory-swap",
-            "1g",
+            *active().driver.docker_flags(),
             image,
             spec,
         ],

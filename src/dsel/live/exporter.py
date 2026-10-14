@@ -488,16 +488,26 @@ def serve(
     run_dir: Path,
     port: int,
     registry: CollectorRegistry | None = None,
+    addr: str | None = None,
 ) -> tuple[RunCollector, threading.Thread]:
-    """Expose a run on `port`. Returns the collector and the server thread."""
+    """Expose a run on `port`. Returns the collector and the server thread.
+
+    `addr=None` keeps prometheus_client's default (all interfaces), which is
+    what `local` has always used. A shared Linux host passes the docker bridge
+    gateway address instead: reachable from the Prometheus container through
+    `host.docker.internal:host-gateway`, not reachable from the LAN.
+    """
     registry = registry if registry is not None else REGISTRY
     collector = RunCollector(run_dir)
     registry.register(collector)
-    _, thread = start_http_server(port, registry=registry)
+    if addr is None:
+        _, thread = start_http_server(port, registry=registry)
+    else:
+        _, thread = start_http_server(port, addr=addr, registry=registry)
     return collector, thread
 
 
-def wait_for_scrape(port: int, timeout_s: float = 10.0) -> None:
+def wait_for_scrape(port: int, timeout_s: float = 10.0, host: str = "127.0.0.1") -> None:
     """Block until the exporter answers, so callers do not race the server."""
     import urllib.error
     import urllib.request
@@ -505,7 +515,7 @@ def wait_for_scrape(port: int, timeout_s: float = 10.0) -> None:
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/metrics", timeout=1) as r:
+            with urllib.request.urlopen(f"http://{host}:{port}/metrics", timeout=1) as r:
                 if r.status == 200:
                     return
         except (urllib.error.URLError, OSError):

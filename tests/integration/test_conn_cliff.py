@@ -61,12 +61,13 @@ from dsel.driver.calibrate import (
     prewarm,
 )
 from dsel.driver.connections import ConnectionRampPlan, run_connection_ramp, table
+from dsel.hostprofile import active, pin_current_process
 from dsel.live.merge import find_shards, merge_records
 from dsel.live.ndjson import ShardWriter
 from dsel.live.sampler.backend_pg import BackendSampler
 from dsel.phenomena.conn_cliff import CONNECTION_AXIS, connection_curve_from_records
 from dsel.runtime.docker import provision, wait_healthy
-from dsel.runtime.envelope import GIB, ResourceEnvelope
+from dsel.runtime.envelope import GIB
 from dsel.runtime.paths import RunLayout, new_run_id
 from dsel.runtime.teardown import Teardown
 from tests.conftest import requires_docker
@@ -107,17 +108,19 @@ def cliff(tmp_path_factory: pytest.TempPathFactory):
     layout.create()
     run_id = layout.run_id
     teardown = Teardown(run_id)
+    # The connection ramp drives from this process. On Linux it is pinned to
+    # the driver tier's cores, so it never runs on the engine's or on the
+    # cores reserved for the host's other work.
+    pin_current_process(active().driver.cpuset)
     try:
         pin = resolve_image(ENGINE_IMAGE)
         container = provision(
             pin,
-            ResourceEnvelope(
-                cpuset=(2, 3, 4, 5),
-                cpus=ENGINE_CPUS,
-                # 256 backends at roughly 8 MB of private memory each, plus
-                # shared buffers, plus room not to be OOM-killed mid-ramp.
-                memory_bytes=3 * GIB,
-                pids_limit=2048,
+            # 256 backends at roughly 8 MB of private memory each, plus shared
+            # buffers, plus room not to be OOM-killed mid-ramp. The cores are the
+            # profile's engine tier; the quota is still one core.
+            active().envelope(
+                "engine", cpus=ENGINE_CPUS, memory_bytes=3 * GIB, pids_limit=2048
             ),
             run_id,
             data_dir=DATA_DIR,

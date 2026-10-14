@@ -31,6 +31,7 @@ import socket
 import pytest
 
 from dsel.audit.environment import resolve_image
+from dsel.hostprofile import active
 from dsel.live.merge import find_shards, merge_records
 from dsel.live.ndjson import ShardWriter
 from dsel.live.sampler.connections import (
@@ -41,7 +42,7 @@ from dsel.live.sampler.connections import (
 from dsel.live.schema import ConnectionEventRecord
 from dsel.phenomena.conn_lifecycle import UNKNOWN, attribute_records
 from dsel.runtime.docker import provision, wait_healthy
-from dsel.runtime.envelope import GIB, ResourceEnvelope
+from dsel.runtime.envelope import GIB
 from dsel.runtime.paths import RunLayout, new_run_id
 from dsel.runtime.teardown import Teardown
 from tests.conftest import requires_docker
@@ -79,7 +80,7 @@ def refusals(tmp_path_factory: pytest.TempPathFactory):
         pin = resolve_image(ENGINE_IMAGE)
         container = provision(
             pin,
-            ResourceEnvelope(cpuset=(2, 3, 4, 5), cpus=4.0, memory_bytes=2 * GIB),
+            active().envelope("engine", memory_bytes=2 * GIB),
             run_id,
             data_dir=DATA_DIR,
             container_port=5432,

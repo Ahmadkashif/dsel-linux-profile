@@ -14,6 +14,7 @@ import uuid
 from dataclasses import dataclass
 
 from dsel.audit.models import ImagePin
+from dsel.hostprofile import LOOPBACK
 from dsel.runtime.envelope import Readback, ResourceEnvelope
 from dsel.runtime.storage import VolumeMount, check_fstype
 from dsel.runtime.teardown import label_flags
@@ -78,8 +79,15 @@ def provision(
     env: dict[str, str] | None = None,
     command: list[str] | None = None,
     name: str | None = None,
+    bind: str = LOOPBACK,
 ) -> Container:
-    """Create the named volume and start the container with every knob set."""
+    """Create the named volume and start the container with every knob set.
+
+    The port is published on `bind`, loopback by default. Docker writes its own
+    NAT rules ahead of the host firewall, so an engine published on 0.0.0.0
+    with the fixed password "dsel" is reachable from the whole LAN or tailnet
+    of whatever machine runs it.
+    """
     container_name = name or f"dsel-{run_id}-{uuid.uuid4().hex[:6]}"
     volume_name = f"{container_name}-data"
 
@@ -97,7 +105,7 @@ def provision(
         *envelope.docker_flags(),
         *mount.docker_flags(),
         "--publish",
-        f"{host_port}:{container_port}",
+        f"{bind}:{host_port}:{container_port}",
     ]
     for key, value in (env or {}).items():
         args += ["--env", f"{key}={value}"]

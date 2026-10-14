@@ -1,0 +1,112 @@
+# Host profile: linux-shared-8c16t (added 2026-10-14)
+#
+# A bare-metal Linux host with eight physical cores and SMT, which dsel SHARES
+# with other live work (on the reference host: a native ollama service, a
+# Temporal container, desktop sessions). dsel is a guest here. It gets half the
+# physical cores, a fixed memory allowance far below the host total, and every
+# port it publishes is bound to loopback.
+#
+# Tiers are written in PHYSICAL cores, indexed in (socket, core) order as
+# `lscpu -e` reports them. `dsel.hostprofile.linux_shared_profile` maps them to
+# logical CPUs from the host's own topology at detection time, so both SMT
+# siblings of a core always land in the same tier and no two tiers share a core.
+# On the reference host (2026-10-14) physical core N is logical CPUs N and N+8.
+#
+# Every value here was proposed in the registry brief (issue #6) and is pending
+# the user's approval. Changing a number is a change to this file, not to code.
+
+name = "linux-shared-8c16t"
+description = "Shared bare-metal Linux host, 8 physical cores / 16 threads; dsel gets cores 4-7"
+# A shared host with co-tenants is not a quiet machine. `reportable` stays false
+# until a measured quiet-window argument is accepted by the user (Q10).
+reportable = false
+
+# Stamped on every manifest under this profile before anything is measured.
+# Reasons read from the host (`cpu_frequency_scaling_enabled`, `smt_active`)
+# and measured ones (`cpuset_isolation_ineffective`, `heterogeneous_cores`) are
+# appended by `dsel env`.
+deviation_reasons = [
+  "shared_host_cotenants",
+  "smt_siblings_share_a_tier",
+]
+# (Top-level keys must precede the first [table] in TOML, or they belong to it.)
+
+# Minimum spec. `dsel profile` checks each row and refuses the profile,
+# naming the failed row, if the host does not meet it.
+#
+# | requirement     | minimum                                   |
+# |-----------------|-------------------------------------------|
+# | os              | Linux                                     |
+# | physical cores  | >= 8 (all online)                         |
+# | MemTotal        | >= 30 GiB  (a "32 GB" machine)            |
+# | cgroup          | v2 (unified hierarchy)                    |
+# | Docker Engine   | >= 28                                     |
+# | SMT             | optional (tiers shrink to one CPU a core) |
+[requirements]
+os = "Linux"
+min_physical_cores = 8
+# The brief proposed ">= 32 GiB". A "32 GB" machine reports less than that once
+# the kernel and firmware have taken theirs: the reference host's MemTotal is
+# 32567244 kB = 31.06 GiB, so a literal 32 GiB floor refuses the very host the
+# profile was written for. 30 GiB keeps the intent and is recorded as a
+# deviation for the user to confirm.
+min_memtotal_gib = 30
+cgroup_version = "2"
+min_docker_major = 28
+smt_required = false
+notes = [
+  "dsel allowance is 4 physical cores and 12 GiB regardless of the host total",
+  "physical cores 0-3 and their SMT siblings are reserved for the host and co-tenants",
+  "never use a second, unmounted NVMe device; no GPU",
+]
+
+# The harness's own allowance. `dsel budget` checks plans against THIS, not
+# against `docker info`, which on Linux reports the whole host.
+[allowance]
+physical_cores = 4
+memory_gib = 12
+disk_gb = 40
+
+# Physical cores per tier. Memory in GiB; swap is always pinned equal to memory.
+[tiers]
+reserved = [0, 1, 2, 3]
+
+[tiers.engine]
+cores = [4, 5]
+memory_gib = 6
+pids_limit = 2048
+
+[tiers.driver]
+cores = [6]
+memory_gib = 2
+pids_limit = 1024
+
+# The app tier and the observability stack share one physical core, half its
+# quota each. That is the one place oversubscription is allowed, and both are
+# kept off the engine's and the driver's cores.
+[tiers.app]
+cores = [7]
+cpus_share = 0.5
+memory_gib = 1
+pids_limit = 1024
+
+[tiers.observability]
+cores = [7]
+cpus_share = 0.5
+memory_gib = 1.5
+pids_limit = 512
+
+# The interference sweep (S1, `dsel env --interference`) measures one of these
+# disjoint whole-core sets while loading the other. Both lie inside the dsel
+# cores and both are four logical CPUs wide, so the sweep is symmetric.
+[interference_pair]
+measured = [4, 5]
+contended = [6, 7]
+
+# Dedicated high ports. The harness defaults (9090/3000/9464) collide with the
+# kind of observability stack such a host usually runs already.
+[ports]
+bind = "127.0.0.1"
+prometheus = 19090
+grafana = 13000
+exporter = 19464

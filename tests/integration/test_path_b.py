@@ -39,9 +39,10 @@ from dsel.driver.calibrate import (
     run_driver,
 )
 from dsel.driver.histogram import hlog_name, read_hlog
+from dsel.hostprofile import active
 from dsel.metrics.validity import APP_CPU_LIMIT_PCT, LOCAL_CEILING_FRACTION
 from dsel.runtime.docker import provision, wait_healthy
-from dsel.runtime.envelope import GIB, ResourceEnvelope
+from dsel.runtime.envelope import GIB
 from dsel.runtime.paths import RunLayout, new_run_id
 from dsel.runtime.teardown import Teardown
 from tests.conftest import requires_docker
@@ -84,7 +85,7 @@ def paths(tmp_path_factory: pytest.TempPathFactory):
 
         engine = provision(
             pin,
-            ResourceEnvelope(cpuset=(2, 3, 4, 5), cpus=4.0, memory_bytes=3 * GIB),
+            active().envelope("engine", memory_bytes=3 * GIB),
             run_id,
             data_dir=DATA_DIR,
             container_port=5432,
@@ -158,14 +159,7 @@ def paths(tmp_path_factory: pytest.TempPathFactory):
                 f"com.dsel.run={run_id}",
                 "--network",
                 network,
-                "--cpuset-cpus",
-                "6-9",
-                "--cpus",
-                "4.0",
-                "--memory",
-                "1g",
-                "--memory-swap",
-                "1g",
+                *active().driver.docker_flags(memory_bytes=1024**3),
                 "--entrypoint",
                 "python",
                 driver_image,

@@ -12,8 +12,8 @@ global:
     # does not attach them to locally stored samples. The stamps that must be
     # on every series are set as target labels below; these are here so an
     # exported or federated copy carries them too.
-    profile: local
-    reportable: "false"
+    profile: ${DSEL_PROFILE}
+    reportable: "${DSEL_REPORTABLE}"
 
 scrape_configs:
   - job_name: dsel
@@ -28,5 +28,5 @@ scrape_configs:
           run_id: "${DSEL_RUN_ID}"
           # Target labels, so they are on every locally stored sample: a graph
           # lifted out of Grafana still says it is not a reportable figure.
-          profile: local
-          reportable: "false"
+          profile: ${DSEL_PROFILE}
+          reportable: "${DSEL_REPORTABLE}"

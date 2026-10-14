@@ -41,6 +41,7 @@ from dsel.compose.observability import (
     panel_targets,
     up,
 )
+from dsel.hostprofile import active
 from dsel.live.exporter import MAX_ACTIVE_SERIES, RunCollector, serve, wait_for_scrape
 from dsel.runtime.paths import RunLayout, new_run_id
 from tests.conftest import requires_docker
@@ -86,8 +87,11 @@ def stack(
     layout.create()
 
     ports = StackPorts(exporter=_free_port(), prometheus=_free_port(), grafana=_free_port())
-    collector, _ = serve(layout.root, ports.exporter, registry=CollectorRegistry())
-    wait_for_scrape(ports.exporter)
+    # On Linux the exporter listens on the docker bridge gateway, which the
+    # Prometheus container reaches as host.docker.internal; on local, as before.
+    addr = active().ports.exporter_bind
+    collector, _ = serve(layout.root, ports.exporter, registry=CollectorRegistry(), addr=addr)
+    wait_for_scrape(ports.exporter, host=addr or "127.0.0.1")
 
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join([str(REPO_ROOT / "src"), str(REPO_ROOT)])

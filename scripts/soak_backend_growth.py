@@ -46,11 +46,12 @@ from dsel.driver.calibrate import (  # noqa: E402
     pgbench_init,
     prewarm,
 )
+from dsel.hostprofile import active, pin_current_process  # noqa: E402
 from dsel.live.ndjson import ShardWriter  # noqa: E402
 from dsel.live.sampler.backend_pg import BackendSampler  # noqa: E402
 from dsel.live.sampler.containers import ContainerSampler  # noqa: E402
 from dsel.runtime.docker import provision, wait_healthy  # noqa: E402
-from dsel.runtime.envelope import GIB, ResourceEnvelope  # noqa: E402
+from dsel.runtime.envelope import GIB  # noqa: E402
 from dsel.runtime.paths import RunLayout, new_run_id  # noqa: E402
 from dsel.runtime.teardown import Teardown  # noqa: E402
 
@@ -133,6 +134,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--interval", type=float, default=5.0, help="sampler cadence")
     args = parser.parse_args(argv)
 
+    # The engine goes on the profile's engine tier; this process -- which holds
+    # the connections -- is pinned to the driver tier's cores, so on a shared
+    # host neither touches the cores reserved for the host's other work.
+    profile = active()
+    pinned = pin_current_process(profile.driver.cpuset)
+    print(
+        f"profile {profile.name}: engine {profile.engine.cpuset_spec}, "
+        f"driver {profile.driver.cpuset_spec}" + (" (this process pinned)" if pinned else ""),
+        flush=True,
+    )
     layout = RunLayout.for_run(new_run_id(), base=args.out)
     layout.create()
     run_id = layout.run_id
@@ -144,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         pin = resolve_image(ENGINE_IMAGE)
         container = provision(
             pin,
-            ResourceEnvelope(cpuset=(2, 3, 4, 5), cpus=4.0, memory_bytes=3 * GIB),
+            profile.envelope("engine", memory_bytes=3 * GIB),
             run_id,
             data_dir=DATA_DIR,
             container_port=5432,

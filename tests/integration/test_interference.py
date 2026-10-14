@@ -6,7 +6,12 @@ import pytest
 
 from dsel.audit.environment import resolve_image
 from dsel.audit.interference import _Contention, _measure_capacity, sweep
+from dsel.hostprofile import active
 from tests.conftest import requires_docker
+
+# The profile's pair: 2-5 / 6-9 on `local`, 4-5,12-13 / 6-7,14-15 on the
+# shared Linux host. Never the reserved cores.
+MEASURED, CONTENDED = active().interference_pair
 
 
 @pytest.fixture(scope="module")
@@ -18,8 +23,8 @@ def pin():
 def test_capacity_probe_scales_with_worker_count(pin) -> None:
     """Four workers on a four-vCPU cpuset must beat one. If not, the probe is
     measuring something other than CPU."""
-    one = _measure_capacity(pin, "2-5", workers=1, window_s=1.0)
-    four = _measure_capacity(pin, "2-5", workers=4, window_s=1.0)
+    one = _measure_capacity(pin, MEASURED, workers=1, window_s=1.0)
+    four = _measure_capacity(pin, MEASURED, workers=4, window_s=1.0)
     assert four > one * 2, f"1 worker={one:,.0f} 4 workers={four:,.0f}"
 
 
@@ -28,7 +33,7 @@ def test_contention_context_manager_always_cleans_up(pin) -> None:
     """A leaked spinner would silently poison every later measurement."""
     import subprocess
 
-    with _Contention(pin, "6-9", workers=2) as c:
+    with _Contention(pin, CONTENDED, workers=2) as c:
         name = c._name
         running = subprocess.run(
             ["docker", "ps", "--filter", f"name={name}", "--quiet"],
@@ -51,7 +56,7 @@ def test_contention_cleans_up_on_exception(pin) -> None:
     import subprocess
 
     name = None
-    with pytest.raises(RuntimeError, match="boom"), _Contention(pin, "6-9", workers=1) as c:
+    with pytest.raises(RuntimeError, match="boom"), _Contention(pin, CONTENDED, workers=1) as c:
         name = c._name
         raise RuntimeError("boom")
     gone = subprocess.run(
@@ -70,7 +75,7 @@ def test_zero_level_starts_no_container(pin) -> None:
     before = subprocess.run(
         ["docker", "ps", "--quiet"], capture_output=True, text=True, check=True
     ).stdout.count("\n")
-    with _Contention(pin, "6-9", workers=0):
+    with _Contention(pin, CONTENDED, workers=0):
         during = subprocess.run(
             ["docker", "ps", "--quiet"], capture_output=True, text=True, check=True
         ).stdout.count("\n")

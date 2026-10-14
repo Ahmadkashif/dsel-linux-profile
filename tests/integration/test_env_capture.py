@@ -11,6 +11,7 @@ from dsel.audit.vcpu_probe import (
     REASON_INDISTINGUISHABLE,
     run_probe,
 )
+from dsel.hostprofile import active
 from tests.conftest import requires_docker
 
 PROBE_IMAGE = "python:3.13-slim"
@@ -59,10 +60,24 @@ def test_vm_capture_reads_from_inside_the_container(pin) -> None:
 
 @requires_docker
 def test_probe_produces_a_vector_covering_every_vcpu(pin) -> None:
-    probe, reasons = run_probe(pin, repeats=3)
-    daemon = capture_daemon()
-    assert len(probe.per_vcpu) == daemon.ncpu
-    assert len(probe.relative_speed) == daemon.ncpu
+    profile = active()
+    if profile.probe_cpuset is None:
+        probe, reasons = run_probe(pin, repeats=3)
+        expected = capture_daemon().ncpu
+    else:
+        # On a shared host the probe covers dsel's cores only, never the
+        # reserved ones.
+        probe, reasons = run_probe(
+            pin,
+            repeats=3,
+            cpuset=profile.probe_cpuset,
+            engine_cpuset=profile.engine.cpuset,
+            driver_cpuset=profile.driver.cpuset,
+        )
+        expected = len(profile.probe_cpuset)
+        assert [s.vcpu for s in probe.per_vcpu] == list(profile.probe_cpuset)
+    assert len(probe.per_vcpu) == expected
+    assert len(probe.relative_speed) == expected
     assert max(probe.relative_speed) == 1.0
     assert all(0.0 < v <= 1.0 for v in probe.relative_speed)
     assert set(reasons) <= {REASON_HETEROGENEOUS, REASON_INDISTINGUISHABLE}
@@ -70,8 +85,9 @@ def test_probe_produces_a_vector_covering_every_vcpu(pin) -> None:
 
 @requires_docker
 def test_manifest_carries_the_stamps_and_round_trips(pin) -> None:
-    m = build_manifest(pin, [REASON_INDISTINGUISHABLE])
-    assert m.profile == "local"
+    profile = active()
+    m = build_manifest(pin, [REASON_INDISTINGUISHABLE], profile)
+    assert m.profile == profile.name
     assert m.reportable is False
     assert m.envelope_deviation is True
     assert REASON_INDISTINGUISHABLE in m.envelope_deviation_reasons

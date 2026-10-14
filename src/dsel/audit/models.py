@@ -19,7 +19,12 @@ class Frozen(BaseModel):
 
 
 class HostCapture(Frozen):
-    """The macOS host. Not where measurement happens, but it schedules the VM."""
+    """The host. On a Mac it schedules the VM; on Linux it *is* the machine.
+
+    The Linux-only fields (2026-10-14) are recorded and never changed: the
+    governor, THP mode and SMT state are facts about a shared host, not knobs
+    the harness may turn.
+    """
 
     os_name: str
     os_version: str
@@ -30,6 +35,14 @@ class HostCapture(Frozen):
     performance_cores: int | None = None
     efficiency_cores: int | None = None
     memory_bytes: int | None = None
+    kernel_release: str | None = None
+    smt_active: bool | None = None
+    cpu_governor: str | None = None
+    cpu_scaling_driver: str | None = None
+    transparent_hugepage: str | None = None
+    root_fs_type: str | None = None
+    root_device_rotational: str | None = None
+    thermal_zones: dict[str, str] = Field(default_factory=dict)
 
 
 class DaemonCapture(Frozen):
