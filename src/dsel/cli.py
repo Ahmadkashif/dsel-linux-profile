@@ -140,7 +140,7 @@ def env(
 ) -> None:
     """Capture the environment and probe per-vCPU speed (PLAN.md S1)."""
     _require_docker()
-    from dsel.audit.environment import build_manifest, host_deviation_reasons, resolve_image
+    from dsel.audit.environment import build_manifest, resolve_image
     from dsel.audit.interference import reasons_for, sweep, to_record
     from dsel.audit.vcpu_probe import run_probe
 
@@ -191,15 +191,7 @@ def env(
         records = [to_record(s) for s in sweeps]
 
     manifest = build_manifest(pin, reasons, profile if shared or profile_name else None)
-    if shared:
-        manifest = manifest.model_copy(
-            update={
-                "envelope_deviation_reasons": sorted(
-                    set(manifest.envelope_deviation_reasons)
-                    | set(host_deviation_reasons(manifest.host))
-                )
-            }
-        )
+
     updates: dict[str, object] = {}
     if probe_result is not None:
         updates["vcpu_probe"] = probe_result

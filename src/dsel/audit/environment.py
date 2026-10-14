@@ -421,6 +421,9 @@ def build_manifest(
     host, daemon, vm = capture(image, caps if profile and profile.name != "local" else None)
     prov = provenance()
     reasons = set(deviation_reasons) | set(profile.deviation_reasons if profile else ())
+    if profile is not None and profile.allowance_memory_bytes is not None:
+        # On a shared host the host's own facts (governor, SMT) are reasons too.
+        reasons |= set(host_deviation_reasons(host))
     return Manifest(
         profile=profile.name if profile is not None else "local",
         reportable=profile.reportable if profile is not None else False,
