@@ -34,7 +34,9 @@ import resource
 import socket
 import subprocess
 import sys
+import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -98,6 +100,25 @@ def bridge_address(container: str) -> str:
     ).stdout.split()
     if not out:
         raise RuntimeError(f"{container} has no bridge address")
+    return out[0]
+
+
+def off_driver[T](cpus: tuple[int, ...], start: Callable[[], T]) -> T:
+    """Run `start` in a thread pinned to `cpus`; threads it creates inherit them.
+
+    `sched_setaffinity(0, ...)` on Linux pins the calling *thread*, and a new
+    thread or child process inherits its creator's mask, so this keeps sampler
+    threads and their subprocesses off the cores the driver was pinned to.
+    """
+    out: list[T] = []
+
+    def body() -> None:
+        pin_current_process(cpus)
+        out.append(start())
+
+    thread = threading.Thread(target=body, name="pin-off-driver")
+    thread.start()
+    thread.join()
     return out[0]
 
 
@@ -238,9 +259,21 @@ def main(argv: list[str] | None = None) -> int:
 
         container_writer = ShardWriter(layout.shards, "container-0")
         host_writer = ShardWriter(layout.shards, "host-0")
-        containers = ContainerSampler(container_writer, [container.name]).start()
-        thermal = HostSampler(host_writer, (*profile.engine.cpuset, *profile.driver.cpuset))
-        thermal.start()
+        # The samplers are started from a thread pinned to the observability
+        # tier, so their threads -- and the `docker exec` each container tick
+        # spawns -- inherit that tier rather than the driver's two CPUs. The
+        # 2026-10-14 smoke started them on the driver's cores and its schedule
+        # lag gate fired at 200/s and 400/s with worker CPU at 19-33%; whether
+        # this was the cause is UNVERIFIED until the next smoke.
+        containers, thermal = off_driver(
+            profile.observability.cpuset,
+            lambda: (
+                ContainerSampler(container_writer, [container.name]).start(),
+                HostSampler(
+                    host_writer, (*profile.engine.cpuset, *profile.driver.cpuset)
+                ).start(),
+            ),
+        )
 
         ramp_plan = RampPlan(
             run_dir=layout.root,

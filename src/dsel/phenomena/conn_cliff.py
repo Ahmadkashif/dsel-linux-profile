@@ -235,10 +235,23 @@ def summarise_cells(records: Iterable[AnyRecord]) -> list[CellSummary]:
         # would then disagree for a reason that had nothing to do with the run.
         # Each writer's windows are consecutive and carry the width they
         # actually covered, so its span is their total.
-        by_writer: dict[str, tuple[int, float]] = {}
+        #
+        # A writer emits one window record *per operation* at each boundary, so
+        # with a mix of ops the widths cannot simply be added up: four ops would
+        # count every second four times and divide the rate by four (found
+        # 2026-10-14 by the first multi-op workload, `ledger-mix`, whose file
+        # re-derived 13/s for a step the run measured at 52/s). A writer's span
+        # is that of its op present in the most windows -- for a single-op
+        # workload, exactly the old sum -- and its count is all of its ops.
+        by_writer_op: dict[tuple[str, str], tuple[int, float]] = {}
         for window in group:
-            count, span = by_writer.get(window.w, (0, 0.0))
-            by_writer[window.w] = (count + window.count, span + window.window_ms / 1000.0)
+            key = (window.w, window.op)
+            count, span = by_writer_op.get(key, (0, 0.0))
+            by_writer_op[key] = (count + window.count, span + window.window_ms / 1000.0)
+        by_writer: dict[str, tuple[int, float]] = {}
+        for (writer, _), (count, span) in by_writer_op.items():
+            total, widest = by_writer.get(writer, (0, 0.0))
+            by_writer[writer] = (total + count, max(widest, span))
         achieved = sum(count / span for count, span in by_writer.values() if span > 0)
         # Count-weighted mean of the window estimates, not their maximum. The
         # maximum is a single sample of a tail and moves with whatever else the

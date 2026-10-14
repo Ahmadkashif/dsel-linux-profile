@@ -86,7 +86,6 @@ def main(argv: list[str] | None = None) -> int:
             )
     payload: dict[str, object] = {
         "source": str(args.metrics),
-        "axis": args.axis,
         "steps": len(curve.points),
         **curve.landmarks(),
     }

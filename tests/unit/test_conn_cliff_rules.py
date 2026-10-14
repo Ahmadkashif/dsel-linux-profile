@@ -121,3 +121,27 @@ def test_the_rung_order_is_shuffled_and_reproducible() -> None:
     assert plan(2).rung_order() == plan(2).rung_order()
     # And the failure mode is still reachable deliberately.
     assert plan(1, shuffle=False).rung_order() == list(range(len(counts)))
+
+
+def test_a_multi_op_cell_re_derives_the_sum_of_its_ops_not_their_mean() -> None:
+    """One writer, one-second windows, four ops at 30/10/5/5 per second: the
+    cell ran at 50/s. Adding up every record's width counted each second four
+    times and re-derived 12.5/s (found 2026-10-14 with `ledger-mix`)."""
+    from dsel.live.schema import LatencyWindowRecord
+    from dsel.phenomena.conn_cliff import summarise_cells
+
+    cell = "ledger/postgres/ledger-mix/r50/rep1/step0"
+    records = []
+    seq = 0
+    for second in range(10):
+        for op, count in (("read", 30), ("append", 10), ("adjust", 5), ("count", 5)):
+            records.append(
+                LatencyWindowRecord(
+                    t_ms=1_000 * (second + 1), w="driver-0", seq=seq, cell=cell,
+                    window_ms=1000, op=op, count=count, rate_per_s=float(count), p99_us=900.0,
+                )
+            )  # fmt: skip
+            seq += 1
+    (summary,) = summarise_cells(records)
+    assert summary.completed == 500
+    assert summary.achieved_rate_per_s == 50.0
