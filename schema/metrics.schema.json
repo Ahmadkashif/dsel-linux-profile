@@ -626,6 +626,87 @@
       "title": "EngineRecord",
       "type": "object"
     },
+    "HostRecord": {
+      "additionalProperties": false,
+      "description": "The host's thermal and clock state, read-only from /sys (added 2026-10-14).\n\nFor S16(a) on a host where elapsed time may be a proxy for temperature: the\nMac's connection cliff turned out to be the laptop warming up, so on Linux\nthe package temperature and the clock of the cores in use are recorded per\ntick, and a rung can be checked for thermal drift from the file alone. Read,\nnever set: the governor and turbo belong to the host's owner.",
+      "properties": {
+        "cell": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run-matrix cell this record belongs to.",
+          "title": "Cell"
+        },
+        "cpu_freq_khz": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "scaling_cur_freq per logical CPU, kHz.",
+          "title": "Cpu Freq Khz",
+          "type": "object"
+        },
+        "governor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Governor"
+        },
+        "kind": {
+          "const": "host",
+          "default": "host",
+          "title": "Kind",
+          "type": "string"
+        },
+        "package_temp_mc": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "x86_pkg_temp (or coretemp package), millidegrees C.",
+          "title": "Package Temp Mc"
+        },
+        "seq": {
+          "description": "Per-writer monotonic sequence number.",
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "t_ms": {
+          "description": "Sample time, milliseconds since the Unix epoch.",
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "w": {
+          "description": "Writer shard id. Unique per process or thread.",
+          "title": "W",
+          "type": "string"
+        }
+      },
+      "required": [
+        "t_ms",
+        "w",
+        "seq"
+      ],
+      "title": "HostRecord",
+      "type": "object"
+    },
     "LatencyWindowRecord": {
       "additionalProperties": false,
       "description": "Within-window latency estimate. For watching only, never for reporting.",
@@ -1189,6 +1270,7 @@
       "connection_event": "#/$defs/ConnectionEventRecord",
       "container": "#/$defs/ContainerRecord",
       "engine": "#/$defs/EngineRecord",
+      "host": "#/$defs/HostRecord",
       "latency_window": "#/$defs/LatencyWindowRecord",
       "net": "#/$defs/NetRecord",
       "phase": "#/$defs/PhaseRecord",
@@ -1227,8 +1309,11 @@
     },
     {
       "$ref": "#/$defs/ValidityRecord"
+    },
+    {
+      "$ref": "#/$defs/HostRecord"
     }
   ],
   "title": "dsel metrics.ndjson record",
-  "x-schema-version": 2
+  "x-schema-version": 3
 }

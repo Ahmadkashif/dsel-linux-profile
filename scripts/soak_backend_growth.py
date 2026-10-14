@@ -50,6 +50,7 @@ from dsel.hostprofile import active, pin_current_process  # noqa: E402
 from dsel.live.ndjson import ShardWriter  # noqa: E402
 from dsel.live.sampler.backend_pg import BackendSampler  # noqa: E402
 from dsel.live.sampler.containers import ContainerSampler  # noqa: E402
+from dsel.live.sampler.host import HostSampler  # noqa: E402
 from dsel.runtime.docker import provision, wait_healthy  # noqa: E402
 from dsel.runtime.envelope import GIB  # noqa: E402
 from dsel.runtime.paths import RunLayout, new_run_id  # noqa: E402
@@ -176,8 +177,13 @@ def main(argv: list[str] | None = None) -> int:
         containers = ContainerSampler(
             container_writer, [container.name], interval_s=args.interval, cell=cell
         )
+        host_writer = ShardWriter(layout.shards, "host-0")
+        thermal = HostSampler(
+            host_writer, profile.engine.cpuset, interval_s=args.interval, cell=cell
+        )
         sampler.start()
         containers.start()
+        thermal.start()
         print(
             f"holding {args.connections} connections for {args.minutes:g} minutes, "
             f"sampling every {args.interval:g}s",
@@ -193,8 +199,10 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             sampler.stop()
             containers.stop()
+            thermal.stop()
             backend_writer.close()
             container_writer.close()
+            host_writer.close()
 
         from dsel.live.merge import merge_to_file
 

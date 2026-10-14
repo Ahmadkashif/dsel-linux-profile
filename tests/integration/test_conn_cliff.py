@@ -48,7 +48,9 @@ reported.
 
 from __future__ import annotations
 
+import os
 import socket
+from pathlib import Path
 
 import pytest
 
@@ -62,9 +64,10 @@ from dsel.driver.calibrate import (
 )
 from dsel.driver.connections import ConnectionRampPlan, run_connection_ramp, table
 from dsel.hostprofile import active, pin_current_process
-from dsel.live.merge import find_shards, merge_records
+from dsel.live.merge import find_shards, merge_records, merge_to_file
 from dsel.live.ndjson import ShardWriter
 from dsel.live.sampler.backend_pg import BackendSampler
+from dsel.live.sampler.host import HostSampler
 from dsel.phenomena.conn_cliff import CONNECTION_AXIS, connection_curve_from_records
 from dsel.runtime.docker import provision, wait_healthy
 from dsel.runtime.envelope import GIB
@@ -103,8 +106,11 @@ def _free_port() -> int:
 
 @pytest.fixture(scope="module")
 def cliff(tmp_path_factory: pytest.TempPathFactory):
-    out = tmp_path_factory.mktemp("s18a")
-    layout = RunLayout.for_run(new_run_id(), base=out / "runs")
+    # DSEL_RUNS_OUT keeps the run (metrics.ndjson included) for re-derivation
+    # with `scripts/rederive_landmarks.py --axis connections --thermal`.
+    kept = os.environ.get("DSEL_RUNS_OUT")
+    out = Path(kept) if kept else tmp_path_factory.mktemp("s18a") / "runs"
+    layout = RunLayout.for_run(new_run_id(), base=out)
     layout.create()
     run_id = layout.run_id
     teardown = Teardown(run_id)
@@ -139,6 +145,13 @@ def cliff(tmp_path_factory: pytest.TempPathFactory):
         # the connections it wanted rather than the ones the engine had, and
         # the cliff is exactly where those stop being the same.
         sampler_writer = ShardWriter(layout.shards, "backend-0")
+        # Package temperature and the engine's and driver's clocks, 1 Hz, read
+        # from /sys: the Mac's cliff was thermal, so here it is measured.
+        host_writer = ShardWriter(layout.shards, "host-0")
+        profile = active()
+        thermal = HostSampler(
+            host_writer, (*profile.engine.cpuset, *profile.driver.cpuset)
+        ).start()
         plan = ConnectionRampPlan(
             run_dir=layout.root,
             dsn=f"postgresql://postgres:dsel@127.0.0.1:{port}/postgres",
@@ -169,7 +182,11 @@ def cliff(tmp_path_factory: pytest.TempPathFactory):
                     after_step=after,
                 )
             )
+        thermal.stop()
+        host_writer.close()
         sampler_writer.close()
+        merge_to_file(layout.shards, layout.metrics)
+        print(f"\n  run kept at {layout.root}" if kept else "")
         records = list(merge_records(find_shards(layout.shards)))
         return passes, records
     finally:

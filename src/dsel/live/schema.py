@@ -26,7 +26,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class Record(BaseModel):
@@ -188,6 +188,26 @@ class ValidityRecord(Record):
     detail: str | None = None
 
 
+class HostRecord(Record):
+    """The host's thermal and clock state, read-only from /sys (added 2026-10-14).
+
+    For S16(a) on a host where elapsed time may be a proxy for temperature: the
+    Mac's connection cliff turned out to be the laptop warming up, so on Linux
+    the package temperature and the clock of the cores in use are recorded per
+    tick, and a rung can be checked for thermal drift from the file alone. Read,
+    never set: the governor and turbo belong to the host's owner.
+    """
+
+    kind: Literal["host"] = "host"
+    package_temp_mc: int | None = Field(
+        default=None, description="x86_pkg_temp (or coretemp package), millidegrees C."
+    )
+    cpu_freq_khz: dict[str, int] = Field(
+        default_factory=dict, description="scaling_cur_freq per logical CPU, kHz."
+    )
+    governor: str | None = None
+
+
 AnyRecord = Annotated[
     PhaseRecord
     | LatencyWindowRecord
@@ -198,7 +218,8 @@ AnyRecord = Annotated[
     | AppRecord
     | NetRecord
     | ConnectionEventRecord
-    | ValidityRecord,
+    | ValidityRecord
+    | HostRecord,
     Field(discriminator="kind"),
 ]
 
@@ -215,6 +236,7 @@ RECORD_KINDS: tuple[str, ...] = (
     "net",
     "connection_event",
     "validity",
+    "host",
 )
 
 

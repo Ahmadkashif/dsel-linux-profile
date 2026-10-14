@@ -29,7 +29,11 @@ if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from dsel.live.merge import find_shards, merge_records, read_merged  # noqa: E402
-from dsel.phenomena.conn_cliff import curve_from_records  # noqa: E402
+from dsel.phenomena.conn_cliff import (  # noqa: E402
+    connection_curve_from_records,
+    curve_from_records,
+)
+from dsel.phenomena.thermal import drift, per_cell  # noqa: E402
 
 
 def load(path: Path) -> list:
@@ -42,32 +46,60 @@ def load(path: Path) -> list:
     return list(read_merged(path))
 
 
+def _fmt(value: float | None, digits: int) -> str:
+    return "-" if value is None else f"{value:.{digits}f}"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("metrics", type=Path, help="metrics.ndjson, or a run directory")
     parser.add_argument("--table", action="store_true", help="also print the curve")
+    parser.add_argument(
+        "--axis",
+        choices=("rate", "connections"),
+        default="rate",
+        help="rate ramp (S11/S15) or connection ramp (S16a), repeats pooled by median",
+    )
+    parser.add_argument(
+        "--thermal",
+        action="store_true",
+        help="also print package temperature and clock per cell (from `host` records)",
+    )
     args = parser.parse_args(argv)
 
-    curve = curve_from_records(load(args.metrics))
+    records = load(args.metrics)
+    curve = (
+        connection_curve_from_records(records)
+        if args.axis == "connections"
+        else curve_from_records(records)
+    )
     if not curve.points:
         raise SystemExit(f"{args.metrics} holds no latency_window records with a cell id")
 
     if args.table:
-        print(f"{'offered':>9} {'achieved':>9} {'p99 us':>10} {'errors':>8}  verdict")
+        x = "conns" if args.axis == "connections" else "offered"
+        print(f"{x:>9} {'achieved':>9} {'p99 us':>10} {'errors':>8}  verdict")
         for point in curve.points:
             print(
-                f"{point.offered_rate_per_s:>9.0f} {point.achieved_rate_per_s:>9.0f} "
+                f"{point.x:>9.0f} {point.achieved_rate_per_s:>9.0f} "
                 f"{point.p99_us:>10.0f} {point.errors:>8}  {point.verdict}"
             )
-    json.dump(
-        {
-            "source": str(args.metrics),
-            "steps": len(curve.points),
-            **curve.landmarks(),
-        },
-        sys.stdout,
-        indent=2,
-    )
+    payload: dict[str, object] = {
+        "source": str(args.metrics),
+        "axis": args.axis,
+        "steps": len(curve.points),
+        **curve.landmarks(),
+    }
+    if args.thermal:
+        cells = per_cell(records)
+        print(f"{'cell':<44} {'samples':>7} {'pkg C med':>9} {'pkg C max':>9} {'MHz med':>8}")
+        for c in cells:
+            print(
+                f"{c.cell:<44} {c.samples:>7} {_fmt(c.package_temp_c_median, 1):>9} "
+                f"{_fmt(c.package_temp_c_max, 1):>9} {_fmt(c.freq_mhz_median, 0):>8}"
+            )
+        payload["thermal_drift_c"] = drift(cells)
+    json.dump(payload, sys.stdout, indent=2)
     sys.stdout.write("\n")
     return 0
 
