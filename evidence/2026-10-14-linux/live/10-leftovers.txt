@@ -1,0 +1,24 @@
+# 2026-10-14T19:11:00Z leftover check (read-only)
+$ docker ps -a --filter label=com.dsel.managed=true
+0
+$ docker network ls --filter label=com.dsel.managed=true
+0
+$ docker volume ls --filter label=com.dsel.managed=true
+0
+$ images pulled for dsel this round
+mongo:8 d0c8f51bb63f 1.16GB
+postgres:18 74935e722416 650MB
+python:3.13-slim 9d2e5553305c 189MB
+busybox:1.37.0 bdf57e528e45 6.77MB
+$ docker image inspect sizes (bytes)
+python:3.13-slim 187024167
+postgres:18 644156657
+mongo:8 1157815155
+$ du -sh runs/ (kept)
+980K	runs
+$ docker system df
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          43        12        11.42GB   6.607GB (57%)
+Containers      12        1         282.6kB   274.4kB (97%)
+Local Volumes   11        7         4.879GB   4.768GB (97%)
+Build Cache     287       0         13.41GB   7.075GB

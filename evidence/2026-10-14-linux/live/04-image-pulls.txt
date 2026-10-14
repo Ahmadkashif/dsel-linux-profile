@@ -1,0 +1,23 @@
+# 2026-10-14T18:57:21Z anonymous pulls (no docker login)
+$ docker pull python@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285   # repo-pinned base, 2026-09-03
+docker.io/library/python@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
+rc=0
+$ docker tag python@sha256:9d2e... python:3.13-slim   # local alias so resolve_image finds the pinned index locally
+rc=0
+
+# 2026-10-14T18:59:04Z
+$ docker pull -q mongo:8
+docker.io/library/mongo:8
+rc=0
+$ docker image inspect mongo:8 --format {{json .Descriptor}}
+{"mediaType":"application/vnd.oci.image.index.v1+json","digest":"sha256:d0c8f51bb63fb1f992f4ff05293adb3f0967aaaae32c3e5fa567907800819b3b","size":3250}
+
+size=1157815155 created=2026-10-13T21:13:48.811855845Z
+
+# 2026-10-14T19:06:22Z
+$ docker pull -q postgres:18
+docker.io/library/postgres:18
+rc=0
+{"mediaType":"application/vnd.oci.image.index.v1+json","digest":"sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336","size":10229}
+
+size=644156657 created=2026-10-06T01:33:04.259528511Z

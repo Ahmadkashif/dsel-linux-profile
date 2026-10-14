@@ -1,0 +1,128 @@
+{
+  "checks": [
+    {
+      "observed": "Linux",
+      "ok": true,
+      "requirement": "os",
+      "wanted": "Linux"
+    },
+    {
+      "observed": "8 (16 logical online)",
+      "ok": true,
+      "requirement": "physical cores",
+      "wanted": ">= 8"
+    },
+    {
+      "observed": "31.06 GiB",
+      "ok": true,
+      "requirement": "MemTotal",
+      "wanted": ">= 30 GiB"
+    },
+    {
+      "observed": "v2 (cgroup2fs)",
+      "ok": true,
+      "requirement": "cgroup",
+      "wanted": "v2"
+    },
+    {
+      "observed": "29.8.1",
+      "ok": true,
+      "requirement": "Docker Engine",
+      "wanted": ">= 28"
+    },
+    {
+      "observed": "16 vs 16",
+      "ok": true,
+      "requirement": "nproc",
+      "wanted": "== online CPUs"
+    }
+  ],
+  "facts": {
+    "bridge_gateway": "<docker-bridge-gateway>",
+    "cgroup_fs": "cgroup2fs",
+    "cgroup_version": "2",
+    "cpu_model": "Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz",
+    "docker_mem_bytes": 33348857856,
+    "docker_ncpu": 16,
+    "docker_version": "29.8.1",
+    "governor": "powersave",
+    "kernel": "7.0.0-34-generic",
+    "memtotal_kib": 32567244,
+    "nproc": 16,
+    "os_name": "Linux",
+    "smt_active": true,
+    "thp": "madvise"
+  },
+  "profile": "linux-shared-8c16t",
+  "reportable": false,
+  "reserved_cpuset": [
+    0,
+    1,
+    2,
+    3,
+    8,
+    9,
+    10,
+    11
+  ],
+  "tiers": {
+    "app": {
+      "cpus": 1.0,
+      "cpuset": "7,15",
+      "memory_bytes": 1073741824,
+      "pids_limit": 1024
+    },
+    "driver": {
+      "cpus": 2.0,
+      "cpuset": "6,14",
+      "memory_bytes": 2147483648,
+      "pids_limit": 1024
+    },
+    "engine": {
+      "cpus": 4.0,
+      "cpuset": "4-5,12-13",
+      "memory_bytes": 6442450944,
+      "pids_limit": 2048
+    },
+    "observability": {
+      "cpus": 1.0,
+      "cpuset": "7,15",
+      "memory_bytes": 1610612736,
+      "pids_limit": 512
+    }
+  },
+  "topology": {
+    "0": [
+      0,
+      8
+    ],
+    "1": [
+      1,
+      9
+    ],
+    "2": [
+      2,
+      10
+    ],
+    "3": [
+      3,
+      11
+    ],
+    "4": [
+      4,
+      12
+    ],
+    "5": [
+      5,
+      13
+    ],
+    "6": [
+      6,
+      14
+    ],
+    "7": [
+      7,
+      15
+    ]
+  }
+}

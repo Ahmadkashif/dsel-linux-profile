@@ -1,0 +1,6 @@
+# 2026-10-14T18:57:44Z commit 3e9507e
+$ uv run dsel env --out ../phase-3/evidence/05-dsel-env-manifest.json   # probe on dsel cores only, no --interference
+wrote <topic>/phase-3/evidence/05-dsel-env-manifest.json
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:13.95
+	Maximum resident set size (kbytes): 49852
+rc=0

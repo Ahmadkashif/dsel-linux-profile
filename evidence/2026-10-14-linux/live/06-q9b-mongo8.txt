@@ -1,0 +1,8 @@
+== 2026-10-14T19:00:50Z kernel 7.0.0-34-generic run q9b-20261014T190050Z
+state after 2s: exited 1
+-- docker logs (FATAL / kernel / SERVER-121912 lines; last 15 lines otherwise)
+{"t":{"$date":"2026-10-14T19:00:50.660+00:00"},"s":"F",  "c":"CONTROL",  "id":12257600,"ctx":"main","msg":"MongoDB cannot start: Linux kernel versions 6.19 and newer has a known incompatibility with this version of MongoDB. See https://jira.mongodb.org/browse/SERVER-121912 for more information."}
+-- tail
+{"t":{"$date":"2026-10-14T19:00:50.660+00:00"},"s":"F",  "c":"CONTROL",  "id":12257600,"ctx":"main","msg":"MongoDB cannot start: Linux kernel versions 6.19 and newer has a known incompatibility with this version of MongoDB. See https://jira.mongodb.org/browse/SERVER-121912 for more information."}
+leftover containers for q9b-20261014T190050Z: 0
+leftover anonymous volumes of that container: 0

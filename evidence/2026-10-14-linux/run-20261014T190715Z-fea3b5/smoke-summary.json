@@ -1,0 +1,133 @@
+{
+  "driver": {
+    "cpuset": "6,14",
+    "peak_rss_kib_largest_worker": 84820,
+    "peak_rss_kib_supervisor": 85588,
+    "pinned": true,
+    "workers": 2
+  },
+  "engine": {
+    "cpus": 2.0,
+    "cpuset": "4-5,12-13",
+    "image": "postgres:18",
+    "index_digest": "sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336",
+    "memory_bytes": 2147483648,
+    "pids_limit": 512,
+    "platform_digest": "sha256:885953109528ad3dfc90362b1a6f50a78620b5315be19f187753d267e484dc5b"
+  },
+  "landmarks_in_memory": {
+    "collapse_rate_per_s": null,
+    "knee_rate_per_s": 400.0,
+    "max_sustainable_rate_per_s": 100.0
+  },
+  "leftover_after_teardown": {
+    "container": [],
+    "network": [],
+    "volume": []
+  },
+  "profile": "linux-shared-8c16t",
+  "readback": {
+    "cpu_max": "200000 100000",
+    "cpuset_effective": [
+      4,
+      5,
+      12,
+      13
+    ],
+    "data_fstype": "ext2/ext3",
+    "host_cpuset": "4-5,12-13",
+    "knobs": {
+      "fsync": "on",
+      "max_connections": "50",
+      "max_wal_size": "1GB",
+      "shared_buffers": "256MB",
+      "synchronous_commit": "on"
+    },
+    "memory_max": 2147483648,
+    "memory_swap": 2147483648,
+    "nproc_visible": 4,
+    "pids_max": 512
+  },
+  "records": 543,
+  "run_id": "20261014T190715Z-fea3b5",
+  "steps": [
+    {
+      "achieved": 52.466592080667134,
+      "completed": 627,
+      "errors": 0,
+      "max_worker_cpu": 0.06726882150609251,
+      "offered": 50.0,
+      "p50_us": 1288.3030303030303,
+      "p99_us": 10064.977671451355,
+      "verdict": "OK"
+    },
+    {
+      "achieved": 97.60959271783288,
+      "completed": 1169,
+      "errors": 0,
+      "max_worker_cpu": 0.11434571339929517,
+      "offered": 100.0,
+      "p50_us": 1255.9914456800684,
+      "p99_us": 13473.591958939265,
+      "verdict": "OK"
+    },
+    {
+      "achieved": 200.97256151539727,
+      "completed": 2411,
+      "errors": 0,
+      "max_worker_cpu": 0.18860669378843054,
+      "offered": 200.0,
+      "p50_us": 1106.415180423061,
+      "p99_us": 15718.01451679801,
+      "verdict": "INCONCLUSIVE_DRIVER_BOUND"
+    },
+    {
+      "achieved": 398.3171223463631,
+      "completed": 4807,
+      "errors": 0,
+      "max_worker_cpu": 0.3259104952266666,
+      "offered": 400.0,
+      "p50_us": 1169.2941543582276,
+      "p99_us": 99057.85916371958,
+      "verdict": "INCONCLUSIVE_DRIVER_BOUND"
+    }
+  ],
+  "workload": {
+    "duration_s": 15.0,
+    "name": "ledger-mix",
+    "ops": [
+      "balance_read",
+      "entry_append",
+      "balance_read",
+      "balance_adjust",
+      "balance_read",
+      "entries_count",
+      "balance_read",
+      "entry_append",
+      "balance_read",
+      "balance_read"
+    ],
+    "rates": [
+      50.0,
+      100.0,
+      200.0,
+      400.0
+    ],
+    "seed": 20261014,
+    "statements": {
+      "balance_adjust": "UPDATE ledger_accounts SET balance = balance + 1, updated_at = now() WHERE id = $1",
+      "balance_read": "SELECT balance FROM ledger_accounts WHERE id = $1",
+      "entries_count": "SELECT count(*) FROM ledger_entries WHERE account_id = $1",
+      "entry_append": "INSERT INTO ledger_entries (account_id, amount) VALUES ($1, ($1 % 97) - 48)"
+    },
+    "warmup_s": 3.0
+  },
+  "write_check": {
+    "balance_increment_expected": 1127,
+    "balance_increment_in_engine": 1127,
+    "entries_expected": 2251,
+    "entries_in_engine": 2251,
+    "errors": 0,
+    "holds": true
+  }
+}

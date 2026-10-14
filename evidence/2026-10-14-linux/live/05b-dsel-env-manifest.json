@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-10-14T18:58:54.615301Z",
+  "profile": "linux-shared-8c16t",
+  "reportable": false,
+  "envelope_deviation": true,
+  "envelope_deviation_reasons": [
+    "cpu_frequency_scaling_enabled",
+    "shared_host_cotenants",
+    "smt_active",
+    "smt_siblings_share_a_tier",
+    "vcpu_speed_indistinguishable"
+  ],
+  "harness_version": "0.1.0",
+  "harness_commit": "a0ea142",
+  "harness_dirty": false,
+  "host": {
+    "os_name": "Linux",
+    "os_version": "Ubuntu 24.04.5 LTS",
+    "arch": "x86_64",
+    "cpu_brand": "Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz",
+    "logical_cpus": 16,
+    "physical_cpus": 8,
+    "performance_cores": null,
+    "efficiency_cores": null,
+    "memory_bytes": 33348857856,
+    "kernel_release": "7.0.0-34-generic",
+    "smt_active": true,
+    "cpu_governor": "powersave",
+    "cpu_scaling_driver": "intel_pstate",
+    "transparent_hugepage": "madvise",
+    "root_fs_type": "ext4",
+    "root_device_rotational": "0",
+    "thermal_zones": {
+      "acpitz": "27800",
+      "pch_cometlake": "38000",
+      "x86_pkg_temp": "51000"
+    }
+  },
+  "daemon": {
+    "server_version": "29.8.1",
+    "kernel_version": "7.0.0-34-generic",
+    "operating_system": "Ubuntu 24.04.5 LTS",
+    "storage_driver": "overlayfs",
+    "ncpu": 16,
+    "mem_total_bytes": 33348857856,
+    "cgroup_version": "2",
+    "cgroup_driver": "systemd",
+    "compose_version": "5.5.1"
+  },
+  "vm": {
+    "kernel_release": "7.0.0-34-generic",
+    "cgroup_controllers": [
+      "cpuset",
+      "cpu",
+      "io",
+      "memory",
+      "hugetlb",
+      "pids",
+      "rdma",
+      "misc",
+      "dmem"
+    ],
+    "transparent_hugepage": "always [madvise] never",
+    "swappiness": 60,
+    "numa_nodes": 1,
+    "shm_size_bytes": 67108864,
+    "cpuinfo_processors": 16,
+    "rotational": {
+      "loop0": "0",
+      "loop1": "0",
+      "loop10": "0",
+      "loop11": "0",
+      "loop12": "0",
+      "loop13": "0",
+      "loop14": "0",
+      "loop15": "0",
+      "loop16": "0",
+      "loop17": "0",
+      "loop18": "0",
+      "loop19": "0",
+      "loop2": "0",
+      "loop20": "0",
+      "loop21": "0",
+      "loop22": "0",
+      "loop23": "0",
+      "loop3": "0",
+      "loop4": "0",
+      "loop5": "0",
+      "loop6": "0",
+      "loop7": "0",
+      "loop8": "0",
+      "loop9": "0",
+      "nvme0n1": "0",
+      "sda": "0"
+    }
+  },
+  "vcpu_probe": {
+    "work_ms": 200,
+    "repeats": 6,
+    "discarded_warmup": 1,
+    "per_vcpu": [
+      {
+        "vcpu": 4,
+        "median_ips": 1323824.7348768709,
+        "min_ips": 1318115.3652413546,
+        "max_ips": 1459654.3734724785,
+        "samples": 5
+      },
+      {
+        "vcpu": 5,
+        "median_ips": 1330158.3102111218,
+        "min_ips": 1032207.6100408608,
+        "max_ips": 1342316.9165429526,
+        "samples": 5
+      },
+      {
+        "vcpu": 6,
+        "median_ips": 1346877.453187628,
+        "min_ips": 1071598.7936508977,
+        "max_ips": 7500881.753386529,
+        "samples": 5
+      },
+      {
+        "vcpu": 7,
+        "median_ips": 1343801.8863951184,
+        "min_ips": 1307278.2597360122,
+        "max_ips": 4034759.366951355,
+        "samples": 5
+      },
+      {
+        "vcpu": 12,
+        "median_ips": 1326147.8653573638,
+        "min_ips": 1295883.2058346244,
+        "max_ips": 1400280.1806162104,
+        "samples": 5
+      },
+      {
+        "vcpu": 13,
+        "median_ips": 1301861.9269182598,
+        "min_ips": 1240676.2000192658,
+        "max_ips": 3538927.6341483,
+        "samples": 5
+      },
+      {
+        "vcpu": 14,
+        "median_ips": 1327800.7503392056,
+        "min_ips": 1229107.7660904396,
+        "max_ips": 1668800.074338548,
+        "samples": 5
+      },
+      {
+        "vcpu": 15,
+        "median_ips": 1335638.6389792433,
+        "min_ips": 1198388.8500782892,
+        "max_ips": 2949899.2461912464,
+        "samples": 5
+      }
+    ],
+    "relative_speed": [
+      0.982884,
+      0.987587,
+      1.0,
+      0.997717,
+      0.984609,
+      0.966578,
+      0.985836,
+      0.991656
+    ],
+    "engine_cpuset": [
+      4,
+      5,
+      12,
+      13
+    ],
+    "driver_cpuset": [
+      6,
+      14
+    ],
+    "engine_aggregate_ips": 5281992.837363617,
+    "driver_aggregate_ips": 2674678.2035268336,
+    "set_difference_pct": 1.2593,
+    "between_vcpu_span_pct": 3.3422,
+    "max_within_vcpu_spread_pct": 477.3473,
+    "image": {
+      "reference": "python:3.13-slim",
+      "index_digest": "sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285",
+      "platform_digest": "sha256:cc9dffa47c8294ba9bb795a8dfaeb7b76f2b30acade2c52a461a2999d127eb00",
+      "platform": "linux/amd64"
+    }
+  },
+  "cpuset_interference": [],
+  "app_ceiling": null,
+  "ab_delta_valid": false
+}

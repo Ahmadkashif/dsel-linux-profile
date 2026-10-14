@@ -1,0 +1,7 @@
+# smoke plan, written before start 2026-10-14T19:07:12Z
+what: scripts/ledger_mix_smoke.py, rates 50,100,200,400/s x (15 s + 3 s warmup), 2 driver workers
+engine: postgres:18 on cpuset 4-5,12-13, --cpus 2, 2 GiB (swap=mem), pids 512, loopback publish
+driver: this process pinned to 6,14; connects on the bridge address
+samplers: container (1 Hz), host thermal (1 Hz, read-only /sys)
+expected duration: ~2.5 min (72 s of ramp + provision/load/teardown); hard limit 5 min
+expected end: before 2026-10-14T19:12:12Z

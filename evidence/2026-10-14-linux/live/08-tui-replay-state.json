@@ -1,0 +1,147 @@
+{
+  "app_endpoints": {},
+  "backends": {},
+  "cell": "ledger/postgres/ledger-mix/r400/rep1/step3",
+  "completed_phases": [
+    "measure",
+    "measure",
+    "measure",
+    "measure"
+  ],
+  "containers": {
+    "dsel-20261014T190715Z-fea3b5-1a35d5": {
+      "container": "dsel-20261014T190715Z-fea3b5-1a35d5",
+      "cpu_throttled_usec": 0,
+      "cpu_usage_usec": 7358055,
+      "memory_current": 127868928,
+      "memory_max": 2147483648,
+      "pids_current": 11
+    }
+  },
+  "elapsed_ms": 62141,
+  "engines": {},
+  "first_t_ms": 1792004841774,
+  "last_t_ms": 1792004903915,
+  "measure_began_t_ms": 1792004888746,
+  "net": {},
+  "ops": {
+    "balance_adjust": {
+      "count": 902,
+      "errors": 0,
+      "max_us": 137343.0,
+      "op": "balance_adjust",
+      "p50_us": 1509.0,
+      "p99_us": 137343.0,
+      "rate_per_s": 17.98140889443634
+    },
+    "balance_read": {
+      "count": 5408,
+      "errors": 0,
+      "max_us": 136447.0,
+      "op": "balance_read",
+      "p50_us": 136447.0,
+      "p99_us": 136447.0,
+      "rate_per_s": 7.372563363845278
+    },
+    "entries_count": {
+      "count": 901,
+      "errors": 0,
+      "max_us": 121983.0,
+      "op": "entries_count",
+      "p50_us": 902.0,
+      "p99_us": 121983.0,
+      "rate_per_s": 17.98140889443634
+    },
+    "entry_append": {
+      "count": 1803,
+      "errors": 0,
+      "max_us": 135551.0,
+      "op": "entry_append",
+      "p50_us": 1806.0,
+      "p99_us": 135551.0,
+      "rate_per_s": 35.96281778887268
+    }
+  },
+  "phase": null,
+  "phase_began_t_ms": 1792004888746,
+  "pools": {},
+  "records_seen": 543,
+  "total_errors": 0,
+  "total_rate": 79.29819894159063,
+  "validity": {
+    "driver_lag_share[0]": {
+      "cell": "ledger/postgres/ledger-mix/r50/rep1/step0",
+      "detail": "median lag 2 us against a median service time of 1826 us; past half, the reported latency describes the driver rather than the engine",
+      "gate": "driver_lag_share[0]",
+      "kind": "validity",
+      "limit": 0.5,
+      "observed": 0.0011,
+      "seq": 51,
+      "t_ms": 1792004857223,
+      "verdict": "OK",
+      "w": "driver-0"
+    },
+    "driver_lag_share[1]": {
+      "cell": "ledger/postgres/ledger-mix/r50/rep1/step0",
+      "detail": "median lag 3 us against a median service time of 1778 us; past half, the reported latency describes the driver rather than the engine",
+      "gate": "driver_lag_share[1]",
+      "kind": "validity",
+      "limit": 0.5,
+      "observed": 0.0017,
+      "seq": 50,
+      "t_ms": 1792004857216,
+      "verdict": "OK",
+      "w": "driver-1"
+    },
+    "driver_schedule_lag[0]": {
+      "cell": "ledger/postgres/ledger-mix/r400/rep1/step3",
+      "detail": "p99 lag against a 5000 us mean inter-arrival; a worker that cannot start on time did not offer the rate the spec asked for",
+      "gate": "driver_schedule_lag[0]",
+      "kind": "validity",
+      "limit": 10000.0,
+      "observed": 101567.0,
+      "seq": 50,
+      "t_ms": 1792004903905,
+      "verdict": "INCONCLUSIVE_DRIVER_BOUND",
+      "w": "driver-0"
+    },
+    "driver_schedule_lag[1]": {
+      "cell": "ledger/postgres/ledger-mix/r400/rep1/step3",
+      "detail": "p99 lag against a 5000 us mean inter-arrival; a worker that cannot start on time did not offer the rate the spec asked for",
+      "gate": "driver_schedule_lag[1]",
+      "kind": "validity",
+      "limit": 10000.0,
+      "observed": 106239.0,
+      "seq": 50,
+      "t_ms": 1792004903915,
+      "verdict": "INCONCLUSIVE_DRIVER_BOUND",
+      "w": "driver-1"
+    },
+    "driver_worker_cpu[0]": {
+      "cell": "ledger/postgres/ledger-mix/r50/rep1/step0",
+      "detail": "pid 227030 used 6.6% of one core; measured per worker because a whole-container gate cannot fire on a single saturated Python process (D6)",
+      "gate": "driver_worker_cpu[0]",
+      "kind": "validity",
+      "limit": 0.7,
+      "observed": 0.0664,
+      "seq": 49,
+      "t_ms": 1792004857223,
+      "verdict": "OK",
+      "w": "driver-0"
+    },
+    "driver_worker_cpu[1]": {
+      "cell": "ledger/postgres/ledger-mix/r50/rep1/step0",
+      "detail": "pid 227031 used 6.7% of one core; measured per worker because a whole-container gate cannot fire on a single saturated Python process (D6)",
+      "gate": "driver_worker_cpu[1]",
+      "kind": "validity",
+      "limit": 0.7,
+      "observed": 0.0673,
+      "seq": 48,
+      "t_ms": 1792004857216,
+      "verdict": "OK",
+      "w": "driver-1"
+    }
+  },
+  "warmup_ended_t_ms": null,
+  "worst_verdict": "INCONCLUSIVE_DRIVER_BOUND"
+}

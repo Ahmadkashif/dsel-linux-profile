@@ -1,0 +1,13 @@
+== quiet check 2026-10-14T18:57:09Z
+loadavg: 0.73 0.65 0.71 1/3110 215620
+MemAvailable: 19204784 kB
+SwapTotal: 8388604 kB
+SwapFree: 4156304 kB
+-- docker stats --no-stream (all running containers)
+orch-temporal cpu=0.47% mem=100.4MiB / 31.06GiB pids=22
+-- native co-tenants (ps, cpu% since start / rss)
+   2507  0.0 13944 16-06:41:54 ollama
+-- listeners on gateway ports from the brief (8443 API, 9091 gateway Prometheus, 3300)
+(none listed = no LLM gateway on this host)
+-- per-CPU busy over 2 s, reserved cores 0-3,8-11 vs dsel cores 4-7,12-15
+cpu0=3% cpu1=3% cpu2=1% cpu3=0% cpu4=1% cpu5=2% cpu6=3% cpu7=1% cpu8=3% cpu9=1% cpu10=2% cpu11=0% cpu12=1% cpu13=0% cpu14=24% cpu15=0% 

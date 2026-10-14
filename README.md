@@ -24,6 +24,11 @@ curve and the identity of the bottleneck — carried across by changing a resour
 not by rewriting the harness.
 <!-- honesty:end -->
 
+> **This repository** is the `dsel` harness with a Linux host profile added on 2026-10-14
+> (MIT licence). What was verified on a shared Linux host and what was **not run** there is
+> listed under [Linux proof of concept](#linux-proof-of-concept-2026-10-14); the evidence is in
+> [`evidence/2026-10-14-linux/`](evidence/2026-10-14-linux/).
+
 ## Why it exists
 
 Choosing a datastore is normally done from vendor benchmarks, blog posts and the opinion of
@@ -166,6 +171,43 @@ Linux, where the thermal confound can be measured rather than assumed. Valkey, C
 OpenSearch and MongoDB adapters (W1–W4) are not started. `PLAN.md` is the source of truth
 for phase status; a phase is finished only when its `Accept:` line has been run as a
 command and passed.
+
+## Linux proof of concept (2026-10-14)
+
+On a shared Linux host (i7-10700K, 8C/16T, 31 GiB, kernel 7.0.0-34, cgroup v2, Docker 29.8.1),
+with dsel confined to physical cores 4–7 and 12 GiB, and nothing on the host changed:
+
+| Step | Status | Evidence |
+|---|---|---|
+| `uv sync --frozen`, ruff, ruff format, mypy --strict | VERIFIED, green unchanged | `toolchain/03-*.log` |
+| `pytest tests/unit` from a fresh clone at 32b167b | 1 of 235 failed (macOS errno numbers), fixed; 298 pass at the branch head | `toolchain/03-pytest*.log`, `toolchain/11-*.log` |
+| Host profile detection, whole-core tiers from `lscpu -e` | VERIFIED | `live/01-dsel-profile.txt` |
+| `dsel budget` refuses an over-allowance plan, arithmetic shown | VERIFIED | `live/02-dsel-budget.txt` |
+| `dsel env` captures kernel, cgroup v2, ext4/NVMe `rotational=0`, THP, governor | VERIFIED | `live/05b-*` |
+| `vm.max_map_count` against OpenSearch's 262144 | VERIFIED read-only: 1048576 | `host/10-host-hw.log` |
+| MongoDB 8 on kernel 7.0 | VERIFIED: refuses (SERVER-121912) | `live/06-q9b-mongo8.txt` |
+| New workload `ledger-mix` end to end: provision, ramp, `metrics.ndjson`, TUI replay, re-derivation | VERIFIED as a pipeline; the driver's lag gate fired at 200/s and 400/s, cause UNVERIFIED | `live/07..09*`, `run-*/` |
+| Interference sweep inside dsel's cores | **NOT RUN** (needs an approved window) | command in `PLAN.md` |
+| Integration suite, per test | **NOT RUN** | command in `PLAN.md` |
+| S16(b) 65-minute soak | **NOT RUN** | command in `PLAN.md` |
+| S16(a) connection cliff with thermal trace | **NOT RUN** | command in `PLAN.md` |
+
+Reproduce the verified steps:
+
+```bash
+uv sync --frozen
+uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest tests/unit -q
+uv run dsel profile
+uv run dsel budget && uv run dsel budget --observability deep    # the second is refused
+uv run dsel env --out runs/env.json
+uv run python scripts/ledger_mix_smoke.py --out runs
+uv run dsel watch --replay runs/<run-id> --screen-out screen.txt
+uv run python scripts/rederive_landmarks.py runs/<run-id>/metrics.ndjson --table --thermal
+```
+
+Left out of this copy: nothing from the harness. The evidence has home paths, the local user
+name and the docker bridge address redacted, and other workloads' process listings removed.
+The archival research under `datastore-selection-automation/` is unchanged from upstream.
 
 ## Layout
 

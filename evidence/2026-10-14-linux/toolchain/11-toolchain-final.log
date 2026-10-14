@@ -1,0 +1,103 @@
+# 2026-10-14T19:13:38Z commit 3d62246 branch linux-profile
+$ uv run ruff check .
+All checks passed!
+rc=0
+$ uv run ruff format --check .
+125 files already formatted
+rc=0
+$ uv run mypy
+Success: no issues found in 67 source files
+rc=0
+$ uv run pytest tests/unit -q
+........................................................................ [ 96%]
+..........                                                               [100%]
+298 passed in 3.53s
+rc=0
+$ uv run pytest tests/unit -q -k "profile or linux or thermal or ledger or conn_lifecycle or conn_cliff_rules" -rA (new and changed tests, names)
+tests/unit/test_conn_cliff_rules.py::test_a_sustained_fall_is_a_collapse
+tests/unit/test_conn_cliff_rules.py::test_a_single_dip_that_recovers_is_not
+tests/unit/test_conn_cliff_rules.py::test_errors_fire_immediately_without_waiting_to_be_sustained
+tests/unit/test_conn_cliff_rules.py::test_the_knee_is_the_first_doubling_of_the_baseline
+tests/unit/test_conn_cliff_rules.py::test_a_flat_curve_has_no_knee_and_no_collapse
+tests/unit/test_conn_cliff_rules.py::test_the_landmarks_are_on_whichever_axis_was_ramped
+tests/unit/test_conn_cliff_rules.py::test_the_rung_order_is_shuffled_and_reproducible
+tests/unit/test_conn_cliff_rules.py::test_a_multi_op_cell_re_derives_the_sum_of_its_ops_not_their_mean
+tests/unit/test_conn_lifecycle.py::test_sqlstate_wins_over_text
+tests/unit/test_conn_lifecycle.py::test_known_sqlstates_are_named[53300-max_connections]
+tests/unit/test_conn_lifecycle.py::test_known_sqlstates_are_named[57P01-server_shutdown]
+tests/unit/test_conn_lifecycle.py::test_known_sqlstates_are_named[57P03-server_starting]
+tests/unit/test_conn_lifecycle.py::test_known_sqlstates_are_named[25P03-idle_in_transaction_session_timeout]
+tests/unit/test_conn_lifecycle.py::test_known_sqlstates_are_named[28P01-authentication]
+tests/unit/test_conn_lifecycle.py::test_text_is_used_when_the_engine_never_answered[FATAL:  sorry, too many clients already-max_connections]
+tests/unit/test_conn_lifecycle.py::test_text_is_used_when_the_engine_never_answered[terminating connection due to idle-in-transaction timeout-idle_in_transaction_session_timeout]
+tests/unit/test_conn_lifecycle.py::test_text_is_used_when_the_engine_never_answered[[Errno 49] Cannot assign requested address-ephemeral_ports]
+tests/unit/test_conn_lifecycle.py::test_text_is_used_when_the_engine_never_answered[Connection reset by peer-connection_reset]
+tests/unit/test_conn_lifecycle.py::test_text_is_used_when_the_engine_never_answered[Connection refused-listen_backlog]
+tests/unit/test_conn_lifecycle.py::test_text_is_used_when_the_engine_never_answered[server closed the connection unexpectedly-server_closed]
+tests/unit/test_conn_lifecycle.py::test_errno_is_used_when_there_is_no_text_to_match[99-ephemeral_ports]
+tests/unit/test_conn_lifecycle.py::test_errno_is_used_when_there_is_no_text_to_match[111-listen_backlog]
+tests/unit/test_conn_lifecycle.py::test_an_unmatched_failure_is_loudly_unknown
+tests/unit/test_conn_lifecycle.py::test_successes_are_counted_separately_from_failures
+tests/unit/test_conn_lifecycle.py::test_no_failures_at_all_is_not_full_attribution
+tests/unit/test_conn_lifecycle.py::test_the_exception_classifier_keeps_evidence_and_adds_nothing
+tests/unit/test_conn_lifecycle.py::test_a_foreign_errno_number_is_not_read_as_a_local_one
+tests/unit/test_hostprofile.py::test_lscpu_groups_smt_siblings_into_physical_cores
+tests/unit/test_hostprofile.py::test_lscpu_with_adjacent_siblings
+tests/unit/test_hostprofile.py::test_offline_cpus_are_left_out
+tests/unit/test_hostprofile.py::test_two_sockets_counting_cores_from_zero_are_not_merged
+tests/unit/test_hostprofile.py::test_small_parsers
+tests/unit/test_hostprofile.py::test_cpuset_spec_renders_like_docker
+tests/unit/test_hostprofile.py::test_local_profile_is_plan_md_slice_table
+tests/unit/test_hostprofile.py::test_local_budget_plan_is_identical_through_the_profile_path
+tests/unit/test_hostprofile.py::test_linux_tiers_are_whole_physical_cores_from_the_topology
+tests/unit/test_hostprofile.py::test_linux_tiers_follow_a_different_numbering_rather_than_assuming_one
+tests/unit/test_hostprofile.py::test_no_tier_touches_the_reserved_cores
+tests/unit/test_hostprofile.py::test_the_allowance_is_four_cores_and_twelve_gib
+tests/unit/test_hostprofile.py::test_quota_matches_cpuset_width
+tests/unit/test_hostprofile.py::test_ports_are_loopback_and_clear_of_the_defaults
+tests/unit/test_hostprofile.py::test_linux_is_not_reportable_by_default
+tests/unit/test_hostprofile.py::test_every_tier_flag_set_has_cpuset_quota_memory_swap_and_pids
+tests/unit/test_hostprofile.py::test_narrowing_never_widens
+tests/unit/test_hostprofile.py::test_a_profile_that_splits_a_core_is_refused
+tests/unit/test_hostprofile.py::test_a_profile_on_reserved_cores_is_refused
+tests/unit/test_hostprofile.py::test_detect_picks_linux_on_the_reference_host
+tests/unit/test_hostprofile.py::test_detect_picks_local_on_a_mac
+tests/unit/test_hostprofile.py::test_detect_refuses_a_host_below_minimum_spec_and_names_the_row[override0-cores]
+tests/unit/test_hostprofile.py::test_detect_refuses_a_host_below_minimum_spec_and_names_the_row[override1-MemTotal]
+tests/unit/test_hostprofile.py::test_detect_refuses_a_host_below_minimum_spec_and_names_the_row[override2-cgroup]
+tests/unit/test_hostprofile.py::test_detect_refuses_a_host_below_minimum_spec_and_names_the_row[override3-Docker]
+tests/unit/test_hostprofile.py::test_detect_refuses_a_host_below_minimum_spec_and_names_the_row[override4-Docker]
+tests/unit/test_hostprofile.py::test_detect_refuses_a_host_below_minimum_spec_and_names_the_row[override5-nproc]
+tests/unit/test_hostprofile.py::test_a_literal_32_gib_floor_would_refuse_a_32_gb_machine
+tests/unit/test_hostprofile.py::test_forced_unknown_profile_is_refused
+tests/unit/test_ledger_mix.py::test_the_mix_is_sixty_twenty_ten_ten
+tests/unit/test_ledger_mix.py::test_every_op_has_a_statement_taking_one_parameter
+tests/unit/test_ledger_mix.py::test_it_is_not_one_of_the_repos_workloads
+tests/unit/test_ledger_mix.py::test_opening_balances_are_index_derived
+tests/unit/test_ledger_mix.py::test_round_robin_counts_are_exact
+tests/unit/test_ledger_mix.py::test_the_transport_picks_the_statement_for_the_op
+tests/unit/test_linux_safety.py::test_linux_budget_is_the_allowance_not_the_host
+tests/unit/test_linux_safety.py::test_the_default_linux_plan_fits
+tests/unit/test_linux_safety.py::test_deep_observability_is_refused_against_the_allowance
+tests/unit/test_linux_safety.py::test_an_engine_asking_for_more_than_its_share_is_refused
+tests/unit/test_linux_safety.py::test_the_same_plan_would_have_fitted_the_host
+tests/unit/test_linux_safety.py::test_a_component_on_a_reserved_core_is_refused
+tests/unit/test_linux_safety.py::test_the_arithmetic_shows_real_cpusets_not_min_max
+tests/unit/test_linux_safety.py::test_provision_publishes_on_loopback
+tests/unit/test_linux_safety.py::test_app_tier_publishes_on_loopback_on_its_tier
+tests/unit/test_linux_safety.py::test_observability_compose_binds_every_port_to_loopback
+tests/unit/test_linux_safety.py::test_compose_env_carries_the_profile
+tests/unit/test_linux_safety.py::test_local_compose_env_keeps_its_ports
+tests/unit/test_linux_safety.py::test_prometheus_stamps_follow_the_profile
+tests/unit/test_linux_safety.py::test_no_module_pins_a_container_to_a_literal_cpuset
+tests/unit/test_linux_safety.py::test_host_deviation_reasons_are_read_not_assumed
+tests/unit/test_linux_safety.py::test_repository_strips_tag_and_digest_but_not_a_registry_port
+tests/unit/test_linux_safety.py::test_platform_lookup_asks_about_the_index_held_not_the_tag
+tests/unit/test_linux_safety.py::test_heterogeneity_is_judged_per_vcpu_when_the_sets_differ_in_width
+tests/unit/test_structural_rules.py::test_phenomena_read_only_the_metrics_stream[conn_lifecycle.py]
+tests/unit/test_structural_rules.py::test_phenomena_read_only_the_metrics_stream[thermal.py]
+tests/unit/test_thermal.py::test_each_cell_gets_only_the_host_samples_inside_its_measure_window
+tests/unit/test_thermal.py::test_latency_windows_bound_a_cell_without_phase_records
+tests/unit/test_thermal.py::test_no_temperature_reads_as_none_not_zero
+tests/unit/test_thermal.py::test_sampler_reads_a_sys_tree_and_writes_nothing
+86 passed, 212 deselected in 0.43s

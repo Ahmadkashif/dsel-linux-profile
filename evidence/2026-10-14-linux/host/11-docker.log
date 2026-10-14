@@ -1,0 +1,19 @@
+2026-10-14T18:41:45Z
+$ docker version
+29.8.1 api=1.56 client=29.8.1
+$ docker info (selected)
+ncpu=16 mem=33348857856 cgroup=2 driver=systemd storage=overlayfs root=/var/lib/docker os=Ubuntu 24.04.5 LTS kernel=7.0.0-34-generic rootless=[name=apparmor,profile=default name=seccomp,profile=builtin name=cgroupns]
+$ docker ps (names/images/ports)
+orch-temporal	temporalio/temporal:latest	Up 2 weeks (healthy)	127.0.0.1:7233->7233/tcp, 127.0.0.1:8233->8233/tcp
+$ docker ps -a --filter label=com.dsel.managed=true
+(docker ps / compose listing of other workloads omitted from the public copy)
+$ docker ps -a --filter label=com.dsel.managed=true
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+NETWORK ID   NAME      DRIVER    SCOPE
+DRIVER    VOLUME NAME
+$ docker system df
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          40        12        9.655GB   4.96GB (51%)
+Containers      12        1         282.6kB   274.4kB (97%)
+Local Volumes   11        7         4.879GB   4.768GB (97%)
+Build Cache     287       0         13.41GB   7.075GB

@@ -1,0 +1,59 @@
+2026-10-14T18:40:27Z
+uv 0.13.1 (x86_64-unknown-linux-gnu)
+Downloading cpython-3.13.16-linux-x86_64-gnu (download) (33.5MiB)
+ Downloaded cpython-3.13.16-linux-x86_64-gnu (download)
+Using CPython 3.13.16
+Creating virtual environment at: .venv
+   Building dsel @ file://<repo>
+Downloading pygments (1.2MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading ast-serialize (1.2MiB)
+Downloading asyncpg (3.4MiB)
+Downloading mypy (14.5MiB)
+Downloading ruff (9.8MiB)
+ Downloaded pygments
+ Downloaded ast-serialize
+ Downloaded pydantic-core
+ Downloaded asyncpg
+      Built dsel @ file://<repo>
+ Downloaded ruff
+ Downloaded mypy
+Prepared 36 packages in 8.78s
+Installed 36 packages in 37ms
+ + annotated-doc==0.0.5
+ + annotated-types==0.8.0
+ + anyio==4.15.0
+ + ast-serialize==0.8.0
+ + asyncpg==0.31.0
+ + click==8.5.0
+ + dsel==0.1.0 (from file://<repo>)
+ + fastapi==0.141.1
+ + h11==0.16.0
+ + hdrhistogram==0.10.7
+ + idna==3.19
+ + iniconfig==2.3.0
+ + librt==0.15.0
+ + markdown-it-py==4.2.0
+ + mdurl==0.1.2
+ + mypy==2.3.1
+ + mypy-extensions==1.1.0
+ + packaging==26.3
+ + pathspec==1.1.1
+ + pbr==7.0.3
+ + pluggy==1.6.0
+ + prometheus-client==0.26.0
+ + pydantic==2.13.5
+ + pydantic-core==2.46.5
+ + pygments==2.21.0
+ + pytest==9.1.1
+ + pyyaml==6.0.3
+ + rich==15.0.0
+ + ruff==0.16.5
+ + setuptools==84.0.0
+ + shellingham==1.5.4
+ + starlette==1.6.0
+ + typer==0.27.2
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + uvicorn==0.52.4
+rc=0

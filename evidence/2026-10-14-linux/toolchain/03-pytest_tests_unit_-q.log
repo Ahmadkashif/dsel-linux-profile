@@ -1,0 +1,25 @@
+2026-10-14T18:40:55Z
+$ uv run pytest tests/unit -q
+.....................................................F.................. [ 30%]
+........................................................................ [ 61%]
+........................................................................ [ 91%]
+...................                                                      [100%]
+=================================== FAILURES ===================================
+________ test_the_exception_classifier_keeps_evidence_and_adds_nothing _________
+
+    def test_the_exception_classifier_keeps_evidence_and_adds_nothing() -> None:
+        sqlstate, message, number = classify_exception(OSError(61, "Connection refused"))
+        assert sqlstate is None
+        assert number == 61
+        assert "Connection refused" in message
+>       assert "ECONNREFUSED" in message, (
+            "the symbolic name helps a reader, the number alone does not"
+        )
+E       AssertionError: the symbolic name helps a reader, the number alone does not
+E       assert 'ECONNREFUSED' in '[Errno 61] Connection refused [ENODATA]'
+
+tests/unit/test_conn_lifecycle.py:118: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_conn_lifecycle.py::test_the_exception_classifier_keeps_evidence_and_adds_nothing
+1 failed, 234 passed in 3.62s
+rc=1

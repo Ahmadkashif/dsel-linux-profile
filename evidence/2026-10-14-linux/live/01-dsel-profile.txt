@@ -1,0 +1,24 @@
+# 2026-10-14T18:56:53Z commit 3e9507e
+$ uv run dsel profile
+profile: linux-shared-8c16t
+
+requirement      minimum          observed                           ok
+---------------- ---------------- ---------------------------------- --
+os               Linux            Linux                              yes
+physical cores   >= 8             8 (16 logical online)              yes
+MemTotal         >= 30 GiB        31.06 GiB                          yes
+cgroup           v2               v2 (cgroup2fs)                     yes
+Docker Engine    >= 28            29.8.1                             yes
+nproc            == online CPUs   16 vs 16                           yes
+
+tier                 cpuset   cpus    memory   pids
+-------------- ------------ ------ --------- ------
+engine            4-5,12-13      4     6.00G   2048
+driver                 6,14      2     2.00G   1024
+app                    7,15      1     1.00G   1024
+observability          7,15      1     1.50G    512
+reserved           0-3,8-11   never used by dsel
+allowance: 8 logical CPUs, 12 GiB memory, 40 GB disk
+ports: bind 127.0.0.1, prometheus 19090, grafana 13000, exporter 19464 on <docker-bridge-gateway>
+reportable: false
+rc=0

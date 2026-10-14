@@ -1,0 +1,4 @@
+#[Histogram log format version 1.2]
+#[StartTime: 1792004888.747 (seconds since epoch)]
+"StartTimestamp","Interval_Length","Interval_Max","Interval_Compressed_Histogram"
+0.000000,15.002089,0.000000,HISTFAAAAPZ4nC2QPU4EMQyFx1+chNEIrdBotUKDhFZb7iEoEEhUHIBqT8ARaOgoOQAHoOIMiBNwETpanr1MFHsc+/0kF8+v8zDYw3D8yn+2CLvP2+Hq53jwZjBROWUE00+huDYbHZiyUodsVB3s8dkXZq1zzhQ7d2psWGtgxcJWccWlSIPtRsQHPoJ6UVkFqILMHs2RKqmeMqNP7g6uSkm62AnmTTHQREvT7qasXWKweGsaVWmBLek5dWqWIg360WUwVIr0w6bmdnK4FSyp93IxBdBaT9/5BGGQfJApHYRk2u2B1B3XupSKax554r3w1fk2Xiq/jXv+AEBiEh4=

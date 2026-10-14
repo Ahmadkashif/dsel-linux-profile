@@ -1,0 +1,6 @@
+# 2026-10-14T19:09:27Z commit f3e7055
+$ uv run dsel watch --replay runs/20261014T190715Z-fea3b5 --state-out 08-tui-replay-state.json --screen-out 08-tui-replay-screen.txt
+│ .hlog is authoritative)                                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+final: 543 records, 4 ops, 1 containers, worst verdict INCONCLUSIVE_DRIVER_BOUND
+rc=0

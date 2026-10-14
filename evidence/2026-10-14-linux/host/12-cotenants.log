@@ -1,0 +1,20 @@
+2026-10-14T18:41:53Z
+$ ss -ltn (ports only, addresses redacted to scope)
+127.0.0.1:11434
+127.0.0.1:7233
+127.0.0.1:8233
+$ ss -ltn for 19090/13000/19464/9090/3000/9464
+(end)
+$ systemctl is-active ollama tailscaled docker
+active
+inactive
+active
+$ docker stats --no-stream
+orch-temporal cpu=0.53% mem=98.23MiB / 31.06GiB pids=22
+$ uptime/loadavg
+1.16 0.97 0.85 2/3126 202682
+$ nvidia-smi present?
+none
+$ docker compose ls
+NAME                        STATUS              CONFIG FILES
+orchestration-scaffolding   running(1)          ~/orchestration-scaffolding/docker-compose.yml

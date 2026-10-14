@@ -1,0 +1,105 @@
+2026-10-14T18:41:34Z
+$ lscpu -e
+CPU NODE SOCKET CORE L1d:L1i:L2:L3 ONLINE    MAXMHZ   MINMHZ      MHZ
+  0    0      0    0 0:0:0:0          yes 5100.0000 800.0000 800.1350
+  1    0      0    1 1:1:1:0          yes 5100.0000 800.0000 800.0060
+  2    0      0    2 2:2:2:0          yes 5100.0000 800.0000 800.3750
+  3    0      0    3 3:3:3:0          yes 5100.0000 800.0000 800.0000
+  4    0      0    4 4:4:4:0          yes 5100.0000 800.0000 800.0330
+  5    0      0    5 5:5:5:0          yes 5100.0000 800.0000 800.0000
+  6    0      0    6 6:6:6:0          yes 5100.0000 800.0000 800.0120
+  7    0      0    7 7:7:7:0          yes 5100.0000 800.0000 800.0000
+  8    0      0    0 0:0:0:0          yes 5100.0000 800.0000 800.0000
+  9    0      0    1 1:1:1:0          yes 5100.0000 800.0000 800.0000
+ 10    0      0    2 2:2:2:0          yes 5100.0000 800.0000 800.0000
+ 11    0      0    3 3:3:3:0          yes 5100.0000 800.0000 800.0000
+ 12    0      0    4 4:4:4:0          yes 5100.0000 800.0000 800.0240
+ 13    0      0    5 5:5:5:0          yes 5100.0000 800.0000 800.0420
+ 14    0      0    6 6:6:6:0          yes 5100.0000 800.0000 800.3130
+ 15    0      0    7 7:7:7:0          yes 5100.0000 800.0000 800.1000
+$ lscpu | head -30
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           39 bits physical, 48 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  16
+On-line CPU(s) list:                     0-15
+Vendor ID:                               GenuineIntel
+Model name:                              Intel(R) Core(TM) i7-10700K CPU @ 3.80GHz
+CPU family:                              6
+Model:                                   165
+Thread(s) per core:                      2
+Core(s) per socket:                      8
+Socket(s):                               1
+Stepping:                                5
+CPU(s) scaling MHz:                      16%
+CPU max MHz:                             5100.0000
+CPU min MHz:                             800.0000
+BogoMIPS:                                7599.80
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp vnmi pku ospke md_clear flush_l1d arch_capabilities
+Virtualization:                          VT-x
+L1d cache:                               256 KiB (8 instances)
+L1i cache:                               256 KiB (8 instances)
+L2 cache:                                2 MiB (8 instances)
+L3 cache:                                16 MiB (1 instance)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-15
+Vulnerability Gather data sampling:      Vulnerable
+Vulnerability Ghostwrite:                Not affected
+Vulnerability Indirect target selection: Mitigation; Aligned branch/return thunks
+Vulnerability Itlb multihit:             KVM: Mitigation: Split huge pages
+$ nproc
+16
+$ meminfo
+MemTotal:       32567244 kB
+MemAvailable:   19206220 kB
+SwapTotal:       8388604 kB
+SwapFree:        4121588 kB
+Hugepagesize:       2048 kB
+$ uname -r
+7.0.0-34-generic
+$ os-release
+NAME="Ubuntu"
+VERSION="24.04.5 LTS (Noble Numbat)"
+$ cgroup
+cgroup2fs
+cpuset cpu io memory hugetlb pids rdma misc dmem
+$ THP
+always [madvise] never
+always defer defer+madvise [madvise] never
+$ governor
+     16 powersave
+intel_pstate
+0
+1
+$ sysctl vm.max_map_count
+vm.max_map_count = 1048576
+$ root fs
+/dev/nvme0n1p2 ext4
+NAME    ROTA   SIZE TYPE MOUNTPOINT
+loop0      0     4K loop /snap/bare/5
+loop1      0    74M loop /snap/core22/2955
+loop2      0  11.8M loop /snap/snap-store/1427
+loop3      0    74M loop /snap/core22/2437
+loop4      0  66.8M loop /snap/core24/1643
+loop5      0 283.8M loop /snap/firefox/9057
+loop6      0  66.8M loop /snap/core24/2124
+loop7      0 614.5M loop /snap/gnome-46-2404/164
+loop8      0    12M loop /snap/snap-store/1447
+loop9      0   402M loop /snap/mesa-2404/1839
+loop10     0  12.7M loop /snap/firmware-updater/258
+loop11     0 606.1M loop /snap/gnome-46-2404/153
+loop12     0 531.4M loop /snap/gnome-42-2204/247
+loop13     0  91.7M loop /snap/gtk-common-themes/1535
+loop14     0 531.5M loop /snap/gnome-42-2204/263
+loop15     0   395M loop /snap/mesa-2404/1165
+loop16     0 262.3M loop /snap/firefox/9036
+loop18     0  12.7M loop /snap/firmware-updater/262
+loop19     0  50.3M loop /snap/snapd/27738
+loop20     0   828K loop /snap/snapd-desktop-integration/391
+loop21     0   828K loop /snap/snapd-desktop-integration/387
+loop22     0  44.7M loop /snap/snapd/28254
+sda        0     0B disk 
+nvme0n1    0 953.9G disk 
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p2  937G  109G  781G  13% /

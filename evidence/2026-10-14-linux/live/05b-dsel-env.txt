@@ -1,0 +1,4 @@
+# 2026-10-14T18:58:42Z commit a0ea142
+$ uv run dsel env --out ../phase-3/evidence/05b-dsel-env-manifest.json
+wrote <topic>/phase-3/evidence/05b-dsel-env-manifest.json
+rc=0

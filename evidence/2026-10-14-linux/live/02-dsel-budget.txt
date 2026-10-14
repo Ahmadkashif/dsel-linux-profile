@@ -1,0 +1,79 @@
+# 2026-10-14T18:56:54Z
+$ uv run dsel budget 
+profile: linux-shared-8c16t
+component                      cpuset   cpus     memory
+-------------------------- ---------- ------ ----------
+app-tier                         7,15    1.0      1.00G
+driver                           6,14    2.0      2.00G
+engine                      4-5,12-13    4.0      6.00G
+observability-light              7,15    1.0      1.50G
+-------------------------- ---------- ------ ----------
+claimed                                          10.50G
+allocatable                                      12.00G   (dsel allowance 12.00G; host 31.06G is not the budget)
+headroom                                          1.50G
+cpu quota claimed                        8.0   on 8 allowed logical CPUs (4-7,12-15)
+
+fits
+rc=0
+
+# 2026-10-14T18:56:54Z
+$ uv run dsel budget --observability deep
+profile: linux-shared-8c16t
+this configuration does not fit:
+  - memory: claims 12.50G against 12.00G allocatable, over by 0.50G (dsel allowance)
+
+component                      cpuset   cpus     memory
+-------------------------- ---------- ------ ----------
+app-tier                         7,15    1.0      1.00G
+driver                           6,14    2.0      2.00G
+engine                      4-5,12-13    4.0      6.00G
+observability-deep               7,15    2.0      3.50G
+-------------------------- ---------- ------ ----------
+claimed                                          12.50G
+allocatable                                      12.00G   (dsel allowance 12.00G; host 31.06G is not the budget)
+headroom                                         -0.50G
+cpu quota claimed                        9.0   on 8 allowed logical CPUs (4-7,12-15)
+oversubscribed vCPUs:
+  vcpu 7: 1.50 quota claimed (1.00 available)
+  vcpu 15: 1.50 quota claimed (1.00 available)
+rc=1
+
+# 2026-10-14T18:56:55Z
+$ uv run dsel budget --engine-memory-gib 10
+profile: linux-shared-8c16t
+this configuration does not fit:
+  - memory: claims 14.50G against 12.00G allocatable, over by 2.50G (dsel allowance)
+
+component                      cpuset   cpus     memory
+-------------------------- ---------- ------ ----------
+app-tier                         7,15    1.0      1.00G
+driver                           6,14    2.0      2.00G
+engine                      4-5,12-13    4.0     10.00G
+observability-light              7,15    1.0      1.50G
+-------------------------- ---------- ------ ----------
+claimed                                          14.50G
+allocatable                                      12.00G   (dsel allowance 12.00G; host 31.06G is not the budget)
+headroom                                         -2.50G
+cpu quota claimed                        8.0   on 8 allowed logical CPUs (4-7,12-15)
+rc=1
+
+# 2026-10-14T18:56:55Z
+$ uv run dsel budget --profile local
+profile: local
+component                      cpuset   cpus     memory
+-------------------------- ---------- ------ ----------
+app-tier                          0-1    2.0      1.00G
+driver                            6-9    4.0      1.00G
+engine                            2-5    4.0      3.00G
+observability-light               0-1    1.0      1.50G
+-------------------------- ---------- ------ ----------
+claimed                                           6.50G
+allocatable                                      30.06G   (VM 31.06G - 1.00G reserve)
+headroom                                         23.56G
+oversubscribed vCPUs:
+  vcpu 0: 1.50 quota claimed (1.00 available)
+  vcpu 1: 1.50 quota claimed (1.00 available)
+
+fits
+rc=0
+
