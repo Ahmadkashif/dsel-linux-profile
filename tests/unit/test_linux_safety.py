@@ -36,7 +36,7 @@ HOST_MEM = 33348857856  # docker info MemTotal on the reference host, 31.06 GiB
 
 @pytest.fixture
 def linux() -> HostProfile:
-    return linux_shared_profile(REFERENCE, exporter_bind="172.17.0.1")
+    return linux_shared_profile(REFERENCE, exporter_bind="192.0.2.1")
 
 
 def linux_budget(profile: HostProfile) -> Budget:

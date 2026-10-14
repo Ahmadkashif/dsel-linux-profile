@@ -155,7 +155,7 @@ def test_local_budget_plan_is_identical_through_the_profile_path() -> None:
 
 @pytest.fixture
 def linux() -> HostProfile:
-    return linux_shared_profile(REFERENCE, exporter_bind="172.17.0.1")
+    return linux_shared_profile(REFERENCE, exporter_bind="192.0.2.1")
 
 
 def test_linux_tiers_are_whole_physical_cores_from_the_topology(linux: HostProfile) -> None:
@@ -201,7 +201,7 @@ def test_ports_are_loopback_and_clear_of_the_defaults(linux: HostProfile) -> Non
         19464,
     )
     assert linux.publish(5555, 5432) == "127.0.0.1:5555:5432"
-    assert linux.ports.exporter_bind == "172.17.0.1"
+    assert linux.ports.exporter_bind == "192.0.2.1"
 
 
 def test_linux_is_not_reportable_by_default(linux: HostProfile) -> None:
