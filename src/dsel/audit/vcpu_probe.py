@@ -125,7 +125,11 @@ def analyse(
 
     engine_agg = sum(by_cpu[c].median_ips for c in engine_cpuset)
     driver_agg = sum(by_cpu[c].median_ips for c in driver_cpuset)
-    set_diff = _pct_difference(engine_agg, driver_agg)
+    # Compared per vCPU, not as totals. On `local` both sets are four wide and
+    # the two are the same number; on `linux-shared-8c16t` the engine has four
+    # logical CPUs and the driver two, and comparing totals reported a 49.6%
+    # "heterogeneity" between identical cores (2026-10-14, first Linux run).
+    set_diff = _pct_difference(engine_agg / len(engine_cpuset), driver_agg / len(driver_cpuset))
 
     slowest = min(medians)
     span = (fastest - slowest) / fastest * 100.0 if fastest > 0 else 0.0

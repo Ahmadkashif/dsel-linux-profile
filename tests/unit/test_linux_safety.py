@@ -290,3 +290,19 @@ def test_platform_lookup_asks_about_the_index_held_not_the_tag(
     pin = environment.resolve_image("postgres:18")
     assert asked == [f"postgres@{held}"]
     assert pin.index_digest == held and pin.platform_digest == "sha256:" + "2" * 64
+
+
+# --- vCPU probe on unequal sets ---------------------------------------------------------------
+
+
+def test_heterogeneity_is_judged_per_vcpu_when_the_sets_differ_in_width() -> None:
+    """Four identical engine CPUs against two identical driver CPUs are not
+    heterogeneous, whatever their totals say."""
+    from dsel.audit.models import VcpuSpeed
+    from dsel.audit.vcpu_probe import REASON_HETEROGENEOUS, analyse
+
+    speeds = [VcpuSpeed(vcpu=c, median_ips=1e6, min_ips=1e6, max_ips=1e6, samples=5)
+              for c in (4, 5, 6, 12, 13, 14)]  # fmt: skip
+    result = analyse(speeds, (4, 5, 12, 13), (6, 14))
+    assert result.set_difference_pct == 0.0
+    assert REASON_HETEROGENEOUS not in result.reasons
