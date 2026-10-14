@@ -4,16 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository currently is
 
-A **completed research deliverable**, not an implementation. `datastore-selection-automation/`
-holds a five-phase research project that produced a buildable POC plan for a system that
-takes a plain-language business use case and returns an auditable datastore
-recommendation. **No harness code exists yet** — there is no `pyproject.toml`, no
-`package.json`, no build system, no test suite. Everything under `phase-3/` is
-verification evidence, not a codebase.
+**A working harness plus the research it was built from.** Harness code has existed since
+2026-09-02: `src/dsel/` (CLI `dsel`), `tests/unit` and `tests/integration`, `scripts/`,
+`observability/`, `images/`, `schema/`. `PLAN.md` is the source of truth for what is built
+and accepted; a phase is done only when its `Accept:` line has been run as a command. The
+research deliverable that specifies it is still under `datastore-selection-automation/`
+(`findings.md` §10 layout, §11 milestones M0–M7).
 
-If asked to *build* the system, `datastore-selection-automation/findings.md` is the
-specification: §10 gives the target repo layout, §11 gives milestones M0–M7 with
-mechanically-checkable acceptance criteria.
+Contributing check: `uv run ruff check . && uv run ruff format --check . && uv run mypy &&
+uv run pytest tests/unit -q`.
+
+**Host profiles (2026-10-14).** Cpusets, quotas, memory, pids limits and ports come from a
+`HostProfile` (`src/dsel/hostprofile/`), never from constants. `local` is the Mac's slice
+table; `linux-shared-8c16t` is a shared Linux host where dsel gets physical cores 4–7 only,
+12 GiB, and loopback-only ports. Detection (`dsel profile`) only reads the host. On a shared
+host: never change host settings (sysctl, governor, daemon config), never touch other
+containers, tear down by the `com.dsel.managed` / `com.dsel.run` labels only, and never run
+`docker system prune` or `volume prune`.
+
+The rest of this file describes the research deliverable.
 
 ## Layout and reading order
 

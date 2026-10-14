@@ -9,9 +9,10 @@ breaks — with the raw evidence to re-check every number it prints.
 
 `dsel` produces **mechanisms, relationships and scaling curves** — where the knee is, how
 throughput moves as connections rise, what saturates first and why. It does **not** produce
-reportable capacity numbers. Every run on this machine is stamped `profile=local`,
-`envelope_deviation=true` and `reportable=false`, and `dsel verify` refuses to sign a report
-carrying `reportable=false`. A claim of the form "this serves N orders per second" is not
+reportable capacity numbers. Every run on the Mac is stamped `profile=local`,
+`envelope_deviation=true` and `reportable=false`; every run on a shared Linux host is stamped
+`profile=linux-shared-8c16t` and `reportable=false` too, and `dsel verify` refuses to sign a
+report carrying `reportable=false`. A claim of the form "this serves N orders per second" is not
 something this build will emit, because that number would not be true on any other hardware.
 
 That refusal is enforced by code, not by discipline. The target machine is a single Apple
@@ -71,8 +72,17 @@ was run as a command and failed.
 **Prerequisites**
 
 - [uv](https://docs.astral.sh/uv/) — the only one you install; it fetches Python 3.13 itself
-- Docker Desktop, running, for anything that provisions an engine
-- `docker login` — anonymous Docker Hub pull limits will otherwise bite partway through a run
+- Docker, running, for anything that provisions an engine: Docker Desktop on macOS, or Docker
+  Engine ≥ 28 with cgroup v2 on Linux
+- Optionally `docker login` — anonymous Docker Hub pull limits can bite partway through a run
+
+**Host profiles.** Where each tier runs is a *host profile*, chosen by a read-only detection
+step (`uv run dsel profile`). `local` is the Mac's slice table, unchanged. `linux-shared-8c16t`
+is for a bare-metal Linux host that dsel shares with other work: it gives dsel four whole
+physical cores (engine 2, driver 1, app tier + observability 1), never the first four, read
+from `lscpu -e`; 12 GiB of memory; pids limits; and every published port on `127.0.0.1`. Its
+file, with the minimum-spec table, is `src/dsel/hostprofile/linux-shared-8c16t.toml`. Force a
+profile with `DSEL_PROFILE=local` or `DSEL_PROFILE=linux-shared-8c16t`.
 
 ```bash
 uv sync --frozen          # environment from the committed lock
@@ -86,9 +96,11 @@ uv run pytest tests/unit -q
 **With Docker running:**
 
 ```bash
-uv run dsel budget                 # does this machine fit the plan? shows the arithmetic
+uv run dsel profile                # which host profile, its minimum-spec checks and tiers
+uv run dsel budget                 # does the plan fit the profile's allowance? shows the arithmetic
 uv run dsel env --no-probe         # capture host, daemon and VM; write the run manifest
 uv run pytest tests/integration -q # provisions real containers; several minutes
+python scripts/ledger_mix_smoke.py # a small read/write workload pushed end to end (~75 s)
 ```
 
 **Watch a run, live or after the fact:**
@@ -101,7 +113,8 @@ uv run dsel watch --replay runs/<run-id>   # same screen, from the finished run
 **Re-derive the findings from the evidence, with no daemon and no harness state:**
 
 ```bash
-python scripts/rederive_landmarks.py runs/<run-id>/metrics.ndjson --table
+python scripts/rederive_landmarks.py runs/<run-id>/metrics.ndjson --table [--thermal]
+python scripts/rederive_landmarks.py runs/<run-id>/metrics.ndjson --axis connections --thermal
 python scripts/analyse_backend_growth.py runs/<run-id>/metrics.ndjson --table
 ```
 
@@ -126,6 +139,15 @@ Built and accepted, against Postgres 18:
 | FastAPI app tier, its saturation ceiling, and driver→app→DB (PATH B) | ✅ |
 | Phenomena re-derived from `metrics.ndjson` alone | ✅ `scripts/` |
 | Connection ramp and refusal attribution | ✅ |
+| Host profiles (`local`, `linux-shared-8c16t`), read-only detection, loopback-only ports | ✅ `dsel profile` (2026-10-14) |
+| Budget against a shared host's dsel allowance, not the host total | ✅ `dsel budget` on Linux (2026-10-14) |
+| Package temperature and clock per rung, re-derived from the file | ✅ `host` records, `--thermal` (recorded in the 2026-10-14 smoke; not yet under load) |
+| A second workload, `ledger-mix`, end to end on Linux | ✅ one low-rate smoke, 2026-10-14 (driver gate fired at 200/s and 400/s) |
+
+On Linux, as of 2026-10-14, unit tests, ruff and mypy are green and `dsel env`, `dsel budget`
+and the `ledger-mix` smoke have run on a shared host. **Not yet run there:** the interference
+sweep, the integration suite, the ≥1 h soak and the connection-cliff ramps — each waits on an
+approved window on the shared host. The commands are in `PLAN.md` under "2026-10-14".
 
 Not built yet — these subcommands exit non-zero and name the phase that will build them,
 rather than exiting 0 and doing nothing:
@@ -139,7 +161,8 @@ rather than exiting 0 and doing nothing:
 | `dsel verify` | G3 — audit bundle verification |
 
 Also outstanding: **S16–S18(b)**, the ≥1 h memory-growth soak — the machinery is built and
-unit-tested but the hour-long acceptance run has not been completed. Valkey, ClickHouse,
+unit-tested but the hour-long acceptance run has not been completed — and **S16(a)** on
+Linux, where the thermal confound can be measured rather than assumed. Valkey, ClickHouse,
 OpenSearch and MongoDB adapters (W1–W4) are not started. `PLAN.md` is the source of truth
 for phase status; a phase is finished only when its `Accept:` line has been run as a
 command and passed.
@@ -149,6 +172,8 @@ command and passed.
 | Path | What it is |
 |---|---|
 | `src/dsel/` | The harness. `live/` records, `phenomena/` derives, and the two never mix |
+| `src/dsel/hostprofile/` | Host profiles and their read-only detection; the Linux profile file |
+| `src/dsel/workloads/` | Workload definitions with the arithmetic that checks them (`ledger_mix`) |
 | `tests/unit/` | No Docker, no network, ~2 s |
 | `tests/integration/` | Real containers; marked `slow`, skipped when Docker is absent |
 | `scripts/` | Standalone derivation from a metrics file — no daemon, no harness state |
@@ -177,7 +202,8 @@ people:
 - **Open loop, always, for any latency claim.** Store raw histograms, never just summaries.
 - **Invalidate rather than report with a caveat.**
 - **The dev machine cannot produce reportable numbers.** Linux CI is the only source of
-  results; this laptop is for validating the pipeline.
+  results; this laptop is for validating the pipeline. A *shared* Linux host is not that
+  either: it stamps `reportable=false` until a measured quiet-window argument is accepted.
 
 ## Contributing
 

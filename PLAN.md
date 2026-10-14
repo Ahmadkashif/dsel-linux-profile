@@ -43,7 +43,7 @@ changing a resource envelope rather than rewriting anything.
 | Workload | `@op`-decorated ops as primary path, plus raw-script escape hatch stamped `latency_validity=closed_loop_uncorrected` and refused by the scorer |
 | Engines | All five, breadth first: Postgres 18, Valkey 9, ClickHouse 26, OpenSearch 3, MongoDB 8 |
 | Build order | Postgres + app tier end to end, then widen, then gate/scoring/bundle |
-| Target machine | **This Mac only.** No Linux runner, now or later |
+| Target machine | **This Mac only.** No Linux runner, now or later. *PROPOSED 2026-10-14, pending the user's confirmation:* add a shared Linux host as a second target under the `linux-shared-8c16t` profile, still `reportable=false` (see "2026-10-14 — Linux host profile") |
 | Licensing | **No GPL in the toolchain.** Rules out `memtier_benchmark` |
 
 ### Hardware slices — locked
@@ -576,6 +576,92 @@ DSEL_SOAK_METRICS=runs/<run-id>/metrics.ndjson uv run pytest \
 
 The test skips rather than passes when `DSEL_SOAK_METRICS` is unset, so nothing in the
 suite currently claims this phase is done.
+
+### 2026-10-14 — Linux host profile (round 2, registry issue #6)
+
+Run on a shared bare-metal Linux host: Intel i7-10700K (8 cores / 16 threads, a desktop part,
+not the laptop the brief expected), MemTotal 31.06 GiB, Ubuntu 24.04.5, kernel 7.0.0-34,
+cgroup v2, Docker Engine 29.8.1, ext4 root on NVMe (`rotational=0`), THP `madvise`, governor
+`powersave` (intel_pstate), SMT on. Co-tenants at the time: a native ollama service and one
+Temporal container; no LLM gateway was listening. Nothing on the host was changed.
+
+**The locked decision.** "This Mac only" is *not* reversed here. The reversal is PROPOSED in
+the table above and waits on the user. Everything below is built so that confirming it is a
+one-line change to this file.
+
+**Done 2026-10-14.**
+
+- *Toolchain on Linux.* From a fresh clone at 32b167b, `uv sync --frozen`, ruff, ruff format
+  and mypy --strict were green unchanged; `pytest tests/unit` failed **1 of 235**:
+  `test_the_exception_classifier_keeps_evidence_and_adds_nothing`. Cause: the errno table
+  in `phenomena/conn_lifecycle.py` held macOS numbers (ECONNREFUSED is 61 there, 111 on
+  Linux, where 61 is ENODATA). It is keyed by symbolic name now, and the name the recording
+  host wrote into the record wins over the number. After all changes: 298 unit tests pass.
+- *Host profiles* (`src/dsel/hostprofile/`). `local` is the slice table above, verbatim; its
+  unit tests pass untouched and its budget arithmetic is asserted byte-identical.
+  `linux-shared-8c16t` maps whole physical cores from `lscpu -e` — engine 4-5,12-13, driver
+  6,14, app tier + observability 7,15, reserved 0-3,8-11 — and refuses a host below its
+  minimum spec, naming the row. The brief's ">= 32 GiB" floor would have refused this 32 GB
+  machine (MemTotal 31.06 GiB), so the file says 30 GiB and the user decides.
+- *Budget against the allowance.* *Accept:* `dsel budget` on the Linux profile refuses an
+  over-allowance plan with the arithmetic shown. **Passed**: deep observability claims
+  12.50G against the 12.00G allowance, "over by 0.50G (dsel allowance)", with the host's
+  31.06G shown and labelled "is not the budget"; `--engine-memory-gib 10` is refused at
+  14.50G.
+- *Loopback only.* Engine and app tier `--publish` and the observability compose `ports:`
+  bind 127.0.0.1; on Linux the stack uses 19090 / 13000 / 19464 and the exporter binds the
+  docker bridge gateway. Asserted by unit tests; the live stack was not started.
+- *Every container capped.* Probe, interference, JDK, seed and capture containers get a
+  cpuset inside dsel's cores, a memory ceiling with swap equal to it, a pids limit and the
+  run label on a shared host. Host-side drivers pin themselves to the driver tier.
+- *Found by running on Linux, fixed:* the platform digest was looked up by tag, not by the
+  index digest held; the vCPU probe compared set totals, so four engine CPUs against two
+  driver CPUs read as 49.6% "heterogeneous"; and the re-derivation divided a multi-op cell's
+  rate by its number of ops (see below).
+- *Thermal confound, instrumented.* A `host` record (schema v3) carries package temperature
+  and the clocks of the CPUs in use, read from /sys at 1 Hz; `phenomena/thermal.py` and
+  `rederive_landmarks.py --thermal` report it per rung from the file alone.
+- *Verification on something new: `ledger-mix`.* A new read/write workload (60/20/10/10
+  balance_read / entry_append / balance_adjust / entries_count) pushed end to end through the
+  Linux profile in one low-rate smoke (run `20261014T190715Z-fea3b5`, 72 s): provision,
+  envelope and knob readback (cpuset 4-5,12-13, cpu.max `200000 100000`, memory.max
+  2147483648, pids.max 512, data on `ext2/ext3`), ramp 50→400/s, 543 records in
+  `metrics.ndjson`, TUI replay, re-derivation, write-path check (2251 entries and +1127 on
+  balances in the engine, exactly as issued) and label-scoped teardown (0 left). Two things
+  it found: (1) the driver's schedule-lag gate fired at 200/s and 400/s — p99 lag 101-106 ms
+  at 400/s with worker CPU at 33% and engine-side (inner) p99 under 3 ms — so those rungs are
+  `INCONCLUSIVE_DRIVER_BOUND`, and why is UNVERIFIED (candidates: sampler subprocesses on the
+  driver's two CPUs, which are one physical core; `powersave` wake-up latency); (2) the file
+  re-derived 13/s for a 52/s step, because `summarise_cells` added every op's window width
+  to the writer's span. Fixed and re-derived from the same file: 52 / 98 / 201 / 399 per
+  second, max sustainable 100/s, knee 400/s, no collapse — identical to the run.
+
+**NOT RUN 2026-10-14** — each waits on a window the user approves on the shared host, and
+each is ready to run as written. Before each: record `phase-3/scripts/quiet_check.sh`
+output from the registry topic, and stop if a co-tenant shows distress.
+
+```bash
+export DSEL_PROFILE=linux-shared-8c16t
+# S1 interference sweep inside dsel's cores, 4-5,12-13 against 6-7,14-15, both directions.
+# ~8 min (2 x 6 blocks x 4 levels x ~4.5 s). Uses cores 4-7,12-15 only.
+uv run dsel env --interference --out runs/env-interference.json
+# Integration suite. Several minutes, plus first-time pulls (prom/prometheus, grafana,
+# eclipse-temurin) and two `docker build`s, which BuildKit does not confine to a cpuset.
+uv run pytest tests/integration -q -rA
+# S16(b): the >= 1 h soak (65 min), engine on 4-5,12-13, this process on 6,14.
+uv run python scripts/soak_backend_growth.py --minutes 65 --connections 24 --out runs
+DSEL_SOAK_METRICS=runs/<run-id>/metrics.ndjson uv run pytest \
+    tests/integration/test_backend_growth_soak.py -q -s
+python scripts/analyse_backend_growth.py runs/<run-id>/metrics.ndjson --table
+# S16(a): connection cliff, rung order randomised per repeat, thermal trace recorded.
+# 6 rungs x 3 repeats x 10 s plus provisioning, ~5 min; saturates one engine core by design.
+DSEL_RUNS_OUT=runs uv run pytest tests/integration/test_conn_cliff.py -q -s
+python scripts/rederive_landmarks.py runs/<run-id>/metrics.ndjson --axis connections --table --thermal
+# ledger-mix again, with the samplers pinned off the driver tier, to test the lag hypothesis.
+uv run python scripts/ledger_mix_smoke.py --out runs
+```
+
+S16(a) and S16(b) therefore remain **not accepted**.
 
 **S19 Joins.** Plausibility pre-flight (`EXPLAIN ANALYZE` assertions, run *before* the
 cell starts), plan fingerprinting and flip detection, `work_mem` × nodes × connections
