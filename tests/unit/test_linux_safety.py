@@ -242,3 +242,51 @@ def test_host_deviation_reasons_are_read_not_assumed() -> None:
         cpu_governor="performance", smt_active=False, root_device_rotational="0",
     )  # fmt: skip
     assert host_deviation_reasons(quiet) == []
+
+
+# --- digest resolution ----------------------------------------------------------------------
+
+
+def test_repository_strips_tag_and_digest_but_not_a_registry_port() -> None:
+    from dsel.audit.environment import repository
+
+    assert repository("postgres:18") == "postgres"
+    assert repository("prom/prometheus@sha256:" + "a" * 64) == "prom/prometheus"
+    assert repository("registry:5000/team/pg:18") == "registry:5000/team/pg"
+
+
+def test_platform_lookup_asks_about_the_index_held_not_the_tag(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The tag can move after the pull; the platform digest must belong to the
+    index digest recorded beside it."""
+    import json
+
+    from dsel.audit import environment
+
+    held = "sha256:" + "1" * 64
+    asked: list[str] = []
+    monkeypatch.setenv("DSEL_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(environment, "_local_index_digest", lambda ref: held)
+
+    def fake_run(args: list[str], **_: object) -> str:
+        asked.append(args[4])
+        index = {
+            "manifests": [
+                {
+                    "digest": "sha256:" + "2" * 64,
+                    "platform": {"os": "linux", "architecture": "amd64"},
+                },
+                {
+                    "digest": "sha256:" + "3" * 64,
+                    "platform": {"os": "linux", "architecture": "arm64"},
+                },
+            ]
+        }
+        return json.dumps(index)
+
+    monkeypatch.setattr(environment, "_run", fake_run)
+    monkeypatch.setattr(environment, "_host_docker_arch", lambda: "amd64")
+    pin = environment.resolve_image("postgres:18")
+    assert asked == [f"postgres@{held}"]
+    assert pin.index_digest == held and pin.platform_digest == "sha256:" + "2" * 64

@@ -315,6 +315,14 @@ def _local_index_digest(reference: str) -> str | None:
     return digest if isinstance(digest, str) and digest.startswith("sha256:") else None
 
 
+def repository(reference: str) -> str:
+    """`postgres:18` -> `postgres`; `host:5000/a/b:t@sha256:..` -> `host:5000/a/b`."""
+    name = reference.split("@", 1)[0]
+    head, _, last = name.rpartition("/")
+    last = last.split(":", 1)[0]
+    return f"{head}/{last}" if head else last
+
+
 def _platform_from_registry(reference: str) -> tuple[str, str]:
     """Ask the registry which platform manifest this host should run."""
     raw = _run(["docker", "buildx", "imagetools", "inspect", reference, "--raw"], timeout=120.0)
@@ -365,7 +373,13 @@ def resolve_image(reference: str, allow_pull: bool = True) -> ImagePin:
             platform=hit["platform"],
         )
 
-    platform_digest, resolved = _platform_from_registry(reference)
+    # Ask the registry about the *index we hold*, by digest, never by tag. The
+    # tag may have moved since the image was pulled, and the platform digest of
+    # a newer index recorded beside an older index digest would be a manifest
+    # that contradicts itself (found 2026-10-14: the lookup was by tag).
+    platform_digest, resolved = _platform_from_registry(
+        f"{repository(reference)}@{index_digest}"
+    )
     cache[index_digest] = {"platform_digest": platform_digest, "platform": resolved}
     _store_cache(cache)
     return ImagePin(
