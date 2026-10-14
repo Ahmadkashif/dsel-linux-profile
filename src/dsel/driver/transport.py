@@ -230,6 +230,11 @@ class PostgresTransport:
     seed: int = 20260903
     worker: int = 0
     statement: str = PGBENCH_SELECT
+    # Optional per-operation statements, for a workload that is a *mix*: the
+    # worker picks `op` round-robin from the plan's ops tuple, and each op name
+    # maps to its own statement here. Every statement takes the account id as
+    # its single parameter. An op not listed uses `statement`.
+    statements: tuple[tuple[str, str], ...] = ()
     last_inner_us: float | None = None
     _loop: object = None
     _conn: object = None
@@ -272,6 +277,7 @@ class PostgresTransport:
             raise TransportError("transport used before open()")
         assert isinstance(loop, asyncio.AbstractEventLoop)
         aid = self.account_id(index)
+        statement = dict(self.statements).get(op, self.statement)
 
         async def issue() -> None:
             # Timed inside the coroutine, so the enclosing
@@ -279,7 +285,7 @@ class PostgresTransport:
             # which the app tier does not pay per request -- falls outside.
             started = time.perf_counter_ns()
             try:
-                await conn.fetchval(self.statement, aid)  # type: ignore[attr-defined]
+                await conn.fetchval(statement, aid)  # type: ignore[attr-defined]
             finally:
                 self.last_inner_us = (time.perf_counter_ns() - started) / 1000.0
 
@@ -302,6 +308,7 @@ class PostgresFactory:
     dsn: str
     scale: int = 10
     statement: str = PGBENCH_SELECT
+    statements: tuple[tuple[str, str], ...] = ()
 
     def __call__(self, spec: object) -> PostgresTransport:
         worker = getattr(spec, "worker", 0)
@@ -312,6 +319,7 @@ class PostgresFactory:
             seed=seed,
             worker=worker,
             statement=self.statement,
+            statements=self.statements,
         )
 
 
